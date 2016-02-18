@@ -27,6 +27,7 @@
    regexp="y"
    script="untagged_info"
    sequence="100"
+   omit_from_output="y"
 ></trigger>
 
 <trigger
@@ -36,6 +37,7 @@
    regexp="y"
    script="untagged_info"
    sequence="100"
+   omit_from_output="y"
 ></trigger>
 
 <trigger
@@ -45,6 +47,7 @@
    regexp="y"
    script="untagged_info"
    sequence="100"
+   omit_from_output="y"
 ></trigger>
 
 <trigger
@@ -54,6 +57,7 @@
    regexp="y"
    script="untagged_info"
    sequence="100"
+   omit_from_output="y"
 ></trigger>
 
 <trigger
@@ -63,6 +67,7 @@
    regexp="y"
    script="untagged_info"
    sequence="100"
+   omit_from_output="y"
 ></trigger>
 
 <trigger
@@ -72,6 +77,7 @@
    regexp="y"
    script="untagged_info"
    sequence="100"
+   omit_from_output="y"
 ></trigger>
 
 <trigger
@@ -81,6 +87,7 @@
    regexp="y"
    script="untagged_info"
    sequence="100"
+   omit_from_output="y"
 ></trigger>
 
 </triggers>
@@ -112,7 +119,7 @@
 
 <alias
    script="list_channels"
-   match="mush channel list"
+   match="mush channel list*"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -175,16 +182,32 @@
 ></alias>
 
 <alias
-   script="disable_channel"
-   match="mush channel disable*"
+   script="unbuffer_channel"
+   match="mush channel unbuffer*"
    enabled="y"
    sequence="100"
    ignore_case="y"
 ></alias>
 
 <alias
-   script="enable_channel"
-   match="mush channel enable*"
+   script="buffer_channel"
+   match="mush channel buffer*"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="loud_channel"
+   match="mush channel loud*"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="quiet_channel"
+   match="mush channel quiet*"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -269,7 +292,7 @@ end
 
 function OnPluginConnect ()
    -- first time after connect, get tags right
-   Send_GMCP_Packet("rawcolor on")
+   Send_GMCP_Packet("gmcpchannels on")
 end --  OnPluginConnect
 
 function OnPluginEnable ()
@@ -310,7 +333,7 @@ end -- function findURL
 
 init_channel_names = {
    "pray", "remort_auction", "global_quest", "info", "raidinfo", "claninfo", "warfare",
-   "advice", "answer", "auction", "barter", "claninfo", "clantalk", "curse", "debate", "dtell", "ftalk", "gametalk", "gclan", "gossip", "gratz", "gsocial", "gtell", "helper", "immtalk", "lasertag", "ltalk", "mafiainfo", "market", "mchat", "mobsay", "music", "mxit", "newbie", "nobletalk", "pchat", "pokerinfo", "ptell", "question", "quote", "racetalk", "rauction", "rp", "say", "sports", "spouse", "tech", "tell", "tiertalk", "trivia", "wangrp", "wardrums"
+   "advice", "answer", "auction", "barter", "cant", "claninfo", "clantalk", "curse", "debate", "dtell", "ftalk", "gametalk", "gclan", "gossip", "gratz", "group", "gsocial", "gtell", "helper", "immtalk", "lasertag", "ltalk", "mafiainfo", "market", "mchat", "mobsay", "music", "mxit", "newbie", "nobletalk", "pchat", "pokerinfo", "ptell", "question", "quote", "racetalk", "rauction", "rp", "say", "sports", "spouse", "tech", "tell", "tiertalk", "trivia", "wangrp", "wardrums"
 }
 loadstring(GetVariable("channels_table") or "channels_table = {}")()
 lines = {}
@@ -336,7 +359,7 @@ end
 
 function addChannelIfNew(channel, prevent_reindex)
    if not channels_table[channel] then
-      channels_table[channel] = {capture=true}
+      channels_table[channel] = {capture=true, autoecho=false}
       
       if not prevent_reindex then -- default to reindex except at the very beginning
          lines[channel] = {}
@@ -364,6 +387,9 @@ function untagged_info(name, line, wildcards, styles)
    if channels_table[name].capture then
       stampAndStore(name, line)
    end
+   if channels_table[name].autoecho then
+      show(line)
+   end
 end
 
 function OnPluginBroadcast(msg, id, name, text)
@@ -380,6 +406,9 @@ function OnPluginBroadcast(msg, id, name, text)
             addChannelIfNew(chan)
             if channels_table[chan].capture then
                stampAndStore(chan, msg, gmcpdata.player)
+            end
+            if channels_table[chan].autoecho then
+               show(msg)
             end
          end
       end
@@ -420,16 +449,16 @@ function stampAndStore(channel, msg, player)
    table.insert(lines[channel], {["msg"]=msg, ["urls"]=urls, ["timestamp"]=timestamp, ["player"]=player})
 end
 
-function list_channels()
-   if #sorted_channel_indices > 0 then
-      show("Currently capturing the following channels:")
-      for i,k in ipairs(sorted_channel_indices) do
-         if channels_table[k].capture then
-            show(k, lines[k] and #(lines[k]) or 0)
-         end
+function list_channels(name, line, wildcards)
+   local flag = Trim(wildcards[1])
+   if flag == "" or flag == "all" then 
+      flag = "known" 
+   end
+   show("The following channels are",flag,":")
+   for k,chan in pairsByKeys(channels_table) do
+      if (flag == "known") or (flag=="buffered" and chan.capture) or (flag=="unbuffered" and not chan.capture) or (flag=="loud" and chan.autoecho) or (flag=="quiet" and not chan.autoecho) then
+         show(k, chan.autoecho and "loud" or "quiet", lines[k] and #(lines[k]) or 0)
       end
-   else
-      show("Not currently capturing any channels.")
    end
    show("")
 end
@@ -541,16 +570,57 @@ function clear_channel()
    show("Channel buffer for",chan,"is cleared.")
 end
 
-function disable_channel(name, line, wildcards)
+function quiet_channel(name, line, wildcards)
    local chan = Trim(wildcards[1])
    if chan == "" then chan = current_channel end
-   if channels_table[chan] and channels_table[chan].capture then
-      show("Channel buffer for",chan,"is disabled.")
+   if chan == "all" then
+      for k,v in pairs(channels_table) do
+         v.autoecho = false
+      end
+      show("Auto speaking for all channels disabled.")
+   elseif channels_table[chan] then
+      channels_table[chan].autoecho = false
+      show("Auto speaking for",chan,"disabled.")
+   elseif chan then
+      show(chan,"is not a captured channel.")
+   end
+   OnPluginSaveState()
+end
+
+function loud_channel(name, line, wildcards)
+   local chan = Trim(wildcards[1])
+   if chan == "" then chan = current_channel end
+   if chan == "all" then
+      for k,v in pairs(channels_table) do
+         v.autoecho = true
+      end
+      show("Auto speaking for all channels enabled.")
+   elseif channels_table[chan] then
+      channels_table[chan].autoecho = true
+      show("Auto speaking for",chan,"enabled.")
+   elseif chan then
+      show(chan,"is not a captured channel.")
+   end
+   OnPluginSaveState()
+end
+
+function unbuffer_channel(name, line, wildcards)
+   local chan = Trim(wildcards[1])
+   if chan == "" then chan = current_channel end
+   if chan == "all" then
+      lines = {}
+      for k,v in pairs(channels_table) do
+         v.capture = false
+      end
+      show("Channel buffer for all channels disabled.")
+      reindexChannels()
+   elseif channels_table[chan] and channels_table[chan].capture then
       if current_channel == chan then
          next_channel()
       end
       channels_table[chan].capture = false
       lines[chan] = nil
+      show("Channel buffer for",chan,"is disabled.")
       reindexChannels()
    elseif chan then
       show(chan,"is not a captured channel.")
@@ -559,7 +629,7 @@ function disable_channel(name, line, wildcards)
    end
 end
 
-function enable_channel(name, line, wildcards)
+function buffer_channel(name, line, wildcards)
    local chan = Trim(wildcards[1])
    if channels_table[chan] and channels_table[chan].capture then
       show(chan,"is already a captured channel.")
@@ -568,16 +638,18 @@ function enable_channel(name, line, wildcards)
          channels_table[chan] = {capture=true}
          lines[chan] = {}
          current_channel_line[chan] = current_channel_line[chan] or 1
-         reindexChannels()
-         show("Channel buffer for",chan,"is enabled.")
       end
       if chan == "all" then
          for k,v in pairs(channels_table) do
             ena(k)
          end
+         show("Channel buffers for all channels enabled.")
+         reindexChannels()
       else
          if chan ~= "" then
             ena(chan)
+            show("Channel buffer for",chan,"is enabled.")
+            reindexChannels()
          else
             show("Invalid channel buffer name given.")
          end

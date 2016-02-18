@@ -454,11 +454,15 @@ function list_channels(name, line, wildcards)
    if flag == "" or flag == "all" then 
       flag = "known" 
    end
-   show("The following channels are",flag,":")
-   for k,chan in pairsByKeys(channels_table) do
-      if (flag == "known") or (flag=="buffered" and chan.capture) or (flag=="unbuffered" and not chan.capture) or (flag=="loud" and chan.autoecho) or (flag=="quiet" and not chan.autoecho) then
-         show(k, chan.autoecho and "loud" or "quiet", lines[k] and #(lines[k]) or 0)
+   if flag=="known" or flag=="buffered" or flag=="unbuffered" or flag=="loud" or flag=="quiet" then
+      show("The following channels are",flag,":")
+      for k,chan in pairsByKeys(channels_table) do
+         if (flag == "known") or (flag=="buffered" and chan.capture) or (flag=="unbuffered" and not chan.capture) or (flag=="loud" and chan.autoecho) or (flag=="quiet" and not chan.autoecho) then
+            show(k, chan.autoecho and "loud" or "quiet", lines[k] and #(lines[k]) or 0)
+         end
       end
+   else
+      show("Invalid list option \""..flag.."\". Choices are buffered, unbuffered, loud, quiet, all.")
    end
    show("")
 end

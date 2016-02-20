@@ -94,302 +94,53 @@
 
 <aliases>
 <alias
-   script="switch_to_channel_by_name"
-   match="mush channel switch *"
+   script="init_channels"
+   match="mush channels reinit"
    enabled="y"
    sequence="100"
    ignore_case="y"
 ></alias>
-
-<alias
-   script="next_channel"
-   match="mush channel next"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-></alias>
-
-<alias
-   script="prev_channel"
-   match="mush channel prev"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-></alias>
-
-<alias
-   script="list_channels"
-   match="mush channel list*"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-></alias>
-
-<alias
-   script="next_line"
-   match="mush channel next line"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-></alias>
-
-<alias
-   script="prev_line"
-   match="mush channel prev line"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-></alias>
-
-<alias
-   script="last_line"
-   match="mush channel last line"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-></alias>
-
-<alias
-   script="first_line"
-   match="mush channel first line"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-></alias>
-
-<alias
-   script="show_line"
-   match="mush channel show line"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-></alias>
-
-<alias
-   script="delete_line"
-   match="mush channel delete line"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-></alias>
-
-<alias
-   script="clear_channel"
-   match="mush channel clear"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-></alias>
-
-<alias
-   script="unbuffer_channel"
-   match="mush channel unbuffer*"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-></alias>
-
-<alias
-   script="buffer_channel"
-   match="mush channel buffer*"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-></alias>
-
-<alias
-   script="loud_channel"
-   match="mush channel loud*"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-></alias>
-
-<alias
-   script="quiet_channel"
-   match="mush channel quiet*"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-></alias>
-
-<alias
-   match="mush channel help"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-   send_to="12"
-><send>
-   for k, v in pairs(GetPluginAliasList(GetPluginID())) do
-      match = GetPluginAliasOption(GetPluginID(), v, "match")
-      if match ~= "mush channel debug" and match ~= "mush channel destroy" then
-         Note(match)
-      end
-   end
-</send>
-</alias>
-
-<alias
-   match="mush channel destroy"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-   send_to="12"
-><send>
-channels_table = {}
-current_channel = "ftalk"
-DeleteVariable("channels_table")
-DeleteVariable("current_channel")
-</send>
-</alias>
-
-<alias
-   match="mush channel debug"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-   send_to="12"
-><send>
-require "tprint"
-print(current_channel)
-print(current_channel_index)
-tprint(channels_table)
-tprint(sorted_channel_indices)
-tprint(lines)
-</send>
-</alias>
-
 </aliases>
 
 <script>
 <![CDATA[
 
 require "gmcphelper"
-require "pairsbykeys"
 dofile(GetInfo(60).."aardwolf_colors.lua")
 
-MAX_CHANNEL_LINES = 1000
-
--- date_format = "%d %b %H:%M:%S"   -- 30 Aug 13:29:49   date and time 24 hour
--- date_format = "%d %b %I:%M:%S%p" -- 30 Aug 01:20:12PM date and time 12 hour
--- date_format = "%H:%M:%S"         -- 13:29:08          time 24 hour
--- date_format = "%X"               -- 1:22:06 PM        time 12 hour
-date_format = GetVariable("date_format") or "%d %b %H:%M:%S"
-log_to_file = tonumber(GetVariable("log_to_file")) or 0
-log_timestamps = tonumber(GetVariable("log_timestamps")) or 1
-
--- where to store the chat line
-lines = {}
-current_channel_line = {}
-
-show_donations = tonumber(GetVariable("show_donations")) or 1
-current_channel = GetVariable("current_channel") or "ftalk"
+capture_donations = tonumber(GetVariable("capture_donations")) or 1
 
 require "checkplugin"
-function OnPluginListChanged ()
-   do_plugin_check_now ("3e7dedbe37e44942dd46d264", "aard_GMCP_handler")    -- check we have GMCP plugin
+function OnPluginListChanged()
+   -- check we have necessary plugins
+   do_plugin_check_now("3e7dedbe37e44942dd46d264", "aard_GMCP_handler")
+   do_plugin_check_now("dd10517422bc35b5131a3aa0", "VI_capture_buffers")
 end
 
-function OnPluginConnect ()
-   -- first time after connect, get tags right
+function OnPluginConnect()
    Send_GMCP_Packet("gmcpchannels on")
-end --  OnPluginConnect
+end
 
-function OnPluginEnable ()
+function OnPluginEnable()
    -- if we are connected when the plugin loads, it must have been reloaded while playing
    if IsConnected() then
       OnPluginConnect()
    end
-end -- OnPluginEnable
+end
 
-require "serialize"
 function OnPluginSaveState()
-   SetVariable("date_format", date_format)
-   SetVariable("log_to_file", log_to_file)
-   SetVariable("log_timestamps", log_timestamps)
-   SetVariable("show_donations", show_donations)
-   if channels_table then
-      SetVariable("channels_table", serialize.save("channels_table"))
-   end
-   if current_channel  then
-      SetVariable("current_channel", current_channel)
-   end
-end --  OnPluginSaveState
-
--- Returns an array {start, end, text}
-function findURLs(text)
-   local URLs = {}
-   local start, position = 0, 0
-   -- "rex" is a table supplied by MUSHclient for PCRE functionality.
-   local re = rex.new("(?:https?://|mailto:)\\S*[\\w/=@#\\-\\?]")
-   re:gmatch(text,
-      function (link, _)
-         start, position = string.find(text, link, position, true)
-         table.insert(URLs, {start=start, stop=position, text=link})
-      end
-   )
-   return URLs
-end -- function findURL
+   SetVariable("did_init", did_init and "1" or "0")
+   SetVariable("capture_donations", capture_donations)
+end
 
 init_channel_names = {
    "pray", "remort_auction", "global_quest", "info", "raidinfo", "claninfo", "warfare",
    "advice", "answer", "auction", "barter", "cant", "claninfo", "clantalk", "curse", "debate", "dtell", "ftalk", "gametalk", "gclan", "gossip", "gratz", "group", "gsocial", "gtell", "helper", "immtalk", "lasertag", "ltalk", "mafiainfo", "market", "mchat", "mobsay", "music", "mxit", "newbie", "nobletalk", "pchat", "pokerinfo", "ptell", "question", "quote", "racetalk", "rauction", "rp", "say", "sports", "spouse", "tech", "tell", "tiertalk", "trivia", "wangrp", "wardrums"
 }
-loadstring(GetVariable("channels_table") or "channels_table = {}")()
-lines = {}
-sorted_channel_indices = {}
-
-function reindexChannels()
-   sorted_channel_indices = {}
-   
-   for k in pairs(lines) do
-      table.insert(sorted_channel_indices, k)
-   end
-   table.sort(sorted_channel_indices)
-   
-   if not current_channel or not lines[current_channel] then
-      if lines["ftalk"] then
-         current_channel = "ftalk"
-      else
-         current_channel = sorted_channel_indices[1]
-      end
-   end
-   current_channel_index = get_channel_index(current_channel)
-end
-
-function addChannelIfNew(channel, prevent_reindex)
-   if not channels_table[channel] then
-      channels_table[channel] = {capture=true, autoecho=false}
-      
-      if not prevent_reindex then -- default to reindex except at the very beginning
-         lines[channel] = {}
-         current_channel_line[channel] = current_channel_line[channel] or 1
-         reindexChannels()
-      end
-   end
-end
-
-function get_channel_index(chan)
-   for i,v in ipairs(sorted_channel_indices) do
-      if v == chan then
-         return i
-      end
-   end
-end
-
-function sanitize_filename(str)
-   str = string.gsub(str, "[^%w%s()_-]", "")
-   return Trim(str)
-end
+did_init = (GetVariable("did_init")=="1")
 
 function untagged_info(name, line, wildcards, styles)
-   addChannelIfNew(name)
-   if channels_table[name].capture then
-      stampAndStore(name, line)
-   end
-   if channels_table[name].autoecho then
-      show(line)
-   end
+   CallPlugin("dd10517422bc35b5131a3aa0", "stamp_and_store", name, line)
 end
 
 function OnPluginBroadcast(msg, id, name, text)
@@ -402,276 +153,27 @@ function OnPluginBroadcast(msg, id, name, text)
 
          msg = strip_colours(gmcpdata.msg or "")
          chan = gmcpdata.chan or ""
-         if (show_donations == 1 or string.match(msg, "^CLAN ANNOUNCEMENT: %a+ has donated") == nil) then
-            addChannelIfNew(chan)
-            if channels_table[chan].capture then
-               stampAndStore(chan, msg, gmcpdata.player)
-            end
-            if channels_table[chan].autoecho then
-               show(msg)
-            end
-         end
-      end
-   end
-end
-
-function stampAndStore(channel, msg, player)    
-   local text = ""
-   local log_text = ""
-    
-   -- inject timestamp if wanted
-   timestamp = os.date(date_format)
-   
-   if (log_to_file == 1) then
-      if (log_timestamps == 0) then
-         log_text = msg
-      else
-         log_text = timestamp..msg
-      end
-      local filename = GetInfo(58):gsub("^.\\",GetInfo(56))..sanitize_filename(GetInfo(2)).."ChatLog.txt"
-      local f, err = io.open (filename, "a+") -- handle to chat log file
-      if f then
-         f:write(log_text.."\n") -- write to it
-         f:close()  -- close that file now
-      else
-         ColourNote("white", "red", "COMMUNICATION LOG ERROR: Failed to access your channel logging file because of the following reason:" )
-         ColourNote("white", "red", err)
-         ColourNote("white", "red", "Fix the problem or disable Logging to File in the "..GetPluginInfo(1).." plugin.")
-      end
-   end
-
-   local urls = findURLs(msg)
-   
-   -- store the lines
-   if #(lines[channel]) >= MAX_CHANNEL_LINES then
-      table.remove(lines[channel], 1)
-   end
-   table.insert(lines[channel], {["msg"]=msg, ["urls"]=urls, ["timestamp"]=timestamp, ["player"]=player})
-end
-
-function list_channels(name, line, wildcards)
-   local flag = Trim(wildcards[1])
-   if flag == "" or flag == "all" then 
-      flag = "known" 
-   end
-   if flag=="known" or flag=="buffered" or flag=="unbuffered" or flag=="loud" or flag=="quiet" then
-      show("The following channels are",flag,":")
-      for k,chan in pairsByKeys(channels_table) do
-         if (flag == "known") or (flag=="buffered" and chan.capture) or (flag=="unbuffered" and not chan.capture) or (flag=="loud" and chan.autoecho) or (flag=="quiet" and not chan.autoecho) then
-            show(k, chan.autoecho and "loud" or "quiet", lines[k] and #(lines[k]) or 0)
-         end
-      end
-   else
-      show("Invalid list option \""..flag.."\". Choices are buffered, unbuffered, loud, quiet, all.")
-   end
-   show("")
-end
-
-function switch_to_channel(chan)
-   current_channel = chan
-   show("Switched to channel buffer for",chan)
-
-   local chan_lines = #(lines[chan])
-   if chan_lines > 0 then
-      local current_line = current_channel_line[chan] or math.min(1, chan_lines)
-      current_channel_line[chan] = current_line
-   end
-
-   show_line()
-end
-
-function switch_to_channel_by_name(name, line, wildcards)
-   local chan = Trim(wildcards[1])
-   if channels_table[chan] and channels_table[chan].capture then
-      current_channel_index = get_channel_index(chan)
-      switch_to_channel(chan)
-   else
-      show(chan,"is not a captured channel.")
-   end
-end
-
-function next_channel()
-   if #sorted_channel_indices > 1 then
-      current_channel_index = current_channel_index+1
-      if current_channel_index > #sorted_channel_indices then
-         current_channel_index = 1
-      end
-      switch_to_channel(sorted_channel_indices[current_channel_index])
-   else
-      show("No other channels are being captured.")
-   end
-end
-
-function prev_channel()
-   if #sorted_channel_indices > 1 then
-      current_channel_index = current_channel_index-1
-      if current_channel_index < 1 then
-         current_channel_index = #sorted_channel_indices
-      end
-      switch_to_channel(sorted_channel_indices[current_channel_index])
-   else
-      show("No other channels are being captured.")
-   end
-end
-
-function next_line()
-   local chan = sorted_channel_indices[current_channel_index]
-   if #(lines[chan]) > 0 then
-      current_channel_line[chan] = math.min(current_channel_line[chan]+1, #(lines[chan]))
-   end
-   show_line()
-end
-
-function prev_line()
-   local chan = sorted_channel_indices[current_channel_index]
-   if #(lines[chan]) > 0 then
-      current_channel_line[chan] = math.max(current_channel_line[chan]-1, 1)
-   end
-   show_line()
-end
-
-function last_line()
-   local chan = sorted_channel_indices[current_channel_index]
-   if #(lines[chan]) > 0 then
-      current_channel_line[chan] = #(lines[chan])
-   end
-   show_line()
-end
-
-function first_line()
-   local chan = sorted_channel_indices[current_channel_index]
-   if #(lines[chan]) > 0 then
-      current_channel_line[chan] = 1
-   end
-   show_line()
-end
-
-function show_line()
-   local chan = sorted_channel_indices[current_channel_index]
-   if #(lines[chan]) > 0 then
-      local current_line = current_channel_line[chan]
-      show(chan,"line", current_line, "of", #(lines[chan]), "at", lines[chan][current_line].timestamp, (lines[chan][current_line].player and (lines[chan][current_line].player.." said") or ""), lines[chan][current_line].msg)
-   else
-      show("Channel buffer for",chan,"is empty.")
-   end
-end
-
-function delete_line()
-   local chan = sorted_channel_indices[current_channel_index]
-   local current_line = current_channel_line[chan]
-   local num_lines = #(lines[chan])
-   if num_lines > 0 then
-      show("Deleting line",current_line,"of",num_lines,"from",chan,"buffer")
-      table.remove(lines[chan], current_line)
-   end
-   show_line()
-end
-
-function clear_channel()
-   local chan = sorted_channel_indices[current_channel_index]
-   lines[chan] = {}
-   current_channel_line[chan] = 1
-   show("Channel buffer for",chan,"is cleared.")
-end
-
-function quiet_channel(name, line, wildcards)
-   local chan = Trim(wildcards[1])
-   if chan == "" then chan = current_channel end
-   if chan == "all" then
-      for k,v in pairs(channels_table) do
-         v.autoecho = false
-      end
-      show("Auto speaking for all channels disabled.")
-   elseif channels_table[chan] then
-      channels_table[chan].autoecho = false
-      show("Auto speaking for",chan,"disabled.")
-   elseif chan then
-      show(chan,"is not a captured channel.")
-   end
-   OnPluginSaveState()
-end
-
-function loud_channel(name, line, wildcards)
-   local chan = Trim(wildcards[1])
-   if chan == "" then chan = current_channel end
-   if chan == "all" then
-      for k,v in pairs(channels_table) do
-         v.autoecho = true
-      end
-      show("Auto speaking for all channels enabled.")
-   elseif channels_table[chan] then
-      channels_table[chan].autoecho = true
-      show("Auto speaking for",chan,"enabled.")
-   elseif chan then
-      show(chan,"is not a captured channel.")
-   end
-   OnPluginSaveState()
-end
-
-function unbuffer_channel(name, line, wildcards)
-   local chan = Trim(wildcards[1])
-   if chan == "" then chan = current_channel end
-   if chan == "all" then
-      lines = {}
-      for k,v in pairs(channels_table) do
-         v.capture = false
-      end
-      show("Channel buffer for all channels disabled.")
-      reindexChannels()
-   elseif channels_table[chan] and channels_table[chan].capture then
-      if current_channel == chan then
-         next_channel()
-      end
-      channels_table[chan].capture = false
-      lines[chan] = nil
-      show("Channel buffer for",chan,"is disabled.")
-      reindexChannels()
-   elseif chan then
-      show(chan,"is not a captured channel.")
-   else
-      show("No channels are being captured.")
-   end
-end
-
-function buffer_channel(name, line, wildcards)
-   local chan = Trim(wildcards[1])
-   if channels_table[chan] and channels_table[chan].capture then
-      show(chan,"is already a captured channel.")
-   else
-      function ena(chan)
-         channels_table[chan] = {capture=true}
-         lines[chan] = {}
-         current_channel_line[chan] = current_channel_line[chan] or 1
-      end
-      if chan == "all" then
-         for k,v in pairs(channels_table) do
-            ena(k)
-         end
-         show("Channel buffers for all channels enabled.")
-         reindexChannels()
-      else
-         if chan ~= "" then
-            ena(chan)
-            show("Channel buffer for",chan,"is enabled.")
-            reindexChannels()
-         else
-            show("Invalid channel buffer name given.")
+         if (capture_donations == 1 or string.match(msg, "^CLAN ANNOUNCEMENT: %a+ has donated") == nil) then
+            CallPlugin("dd10517422bc35b5131a3aa0", "stamp_and_store", chan, msg)
          end
       end
    end
 end
 
 function OnPluginInstall()
-   for i,v in ipairs(init_channel_names) do
-      addChannelIfNew(v, true) -- don't reindex every time here, just do it once at the end
-   end
-   for channel,v in pairs(channels_table) do
-      if v.capture then
-         lines[channel] = {}
-         current_channel_line[channel] = current_channel_line[channel] or 1
+   if not did_init then
+      did_init = true
+      for i,v in ipairs(init_channel_names) do
+         CallPlugin("dd10517422bc35b5131a3aa0", "add_buffer_if_new", v, true) -- don't reindex every time here, just do it once at the end
       end
+      CallPlugin("dd10517422bc35b5131a3aa0", "reindex_buffers")
+      OnPluginSaveState()
    end
-   reindexChannels()
+end
+
+function init_channels()
+   did_init = false
+   OnPluginInstall()
 end
 
 function show(...)

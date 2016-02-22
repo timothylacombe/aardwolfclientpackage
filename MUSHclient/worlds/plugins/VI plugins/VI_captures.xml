@@ -1,0 +1,674 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE muclient>
+
+<muclient>
+<plugin
+   name="VI_captures"
+   author="Fiendish"
+   id="dd10517422bc35b5131a3aa0"
+   language="Lua"
+   purpose="Capture buffers with keyboard navigation"
+   date_written="2016-02-14"
+   requires="5.01"
+   version="0.1"
+   save_state="y"
+>
+
+<description trim="y">
+Capture buffers with keyboard navigation
+</description>
+  
+</plugin>
+
+<aliases>
+<alias
+   script="switch_to_capture_by_name"
+   match="mush capture switch *"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="next_capture"
+   match="mush capture next"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="prev_capture"
+   match="mush capture prev"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="list_captures"
+   match="mush capture list*"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="next_line"
+   match="mush capture next line"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="prev_line"
+   match="mush capture prev line"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="last_line"
+   match="mush capture last line"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="first_line"
+   match="mush capture first line"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="show_line"
+   match="mush capture show line"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="delete_line"
+   match="mush capture delete line"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="clear_capture"
+   match="mush capture clear"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="remove_capture"
+   match="mush capture remove*"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="disable_capture"
+   match="mush capture disable*"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="enable_capture"
+   match="mush capture enable*"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="loud_capture"
+   match="mush capture loud*"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="quiet_capture"
+   match="mush capture quiet*"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   match="mush capture help"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+   send_to="12"
+><send>
+   for k, v in pairs(GetPluginAliasList(GetPluginID())) do
+      match = GetPluginAliasOption(GetPluginID(), v, "match")
+      if match ~= "mush capture debug" and match ~= "mush capture destroy" then
+         show(match)
+      end
+   end
+</send>
+</alias>
+
+<alias
+   match="mush capture destroy"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+   send_to="12"
+><send>
+captures_flags = {}
+current_capture = nil
+DeleteVariable("captures_flags")
+DeleteVariable("current_capture")
+</send>
+</alias>
+
+<alias
+   match="mush capture debug"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+   send_to="12"
+><send>
+require "tprint"
+print(current_capture)
+print(current_capture_index)
+tprint(captures_flags)
+tprint(sorted_capture_indices)
+tprint(history_buffer)
+</send>
+</alias>
+
+</aliases>
+
+<script>
+<![CDATA[
+
+require "pairsbykeys"
+MAX_CAPTURE_LINES = 1000
+
+-- date_format = "%d %b %H:%M:%S"   -- 30 Aug 13:29:49   date and time 24 hour
+-- date_format = "%d %b %I:%M:%S%p" -- 30 Aug 01:20:12PM date and time 12 hour
+-- date_format = "%H:%M:%S"         -- 13:29:08          time 24 hour
+-- date_format = "%X"               -- 1:22:06 PM        time 12 hour
+date_format = GetVariable("date_format") or "%d %b %H:%M:%S"
+log_to_file = tonumber(GetVariable("log_to_file")) or 0
+log_timestamps = tonumber(GetVariable("log_timestamps")) or 1
+
+history_buffer = {} -- per-session capture storage
+current_history_line = {} -- per-session current line indices for each capture
+current_capture = GetVariable("current_capture") -- which capture is currently viewed
+loadstring(GetVariable("captures_flags") or "captures_flags = {}")() -- store which captures are active/quiet/loud/etc
+
+for k,v in pairs(captures_flags) do
+   if v.active == true then
+      history_buffer[k] = {}
+      current_history_line[k] = 1
+   end
+end
+sorted_capture_indices = {}
+   
+require "serialize"
+function OnPluginSaveState()
+   SetVariable("date_format", date_format)
+   SetVariable("log_to_file", log_to_file)
+   SetVariable("log_timestamps", log_timestamps)
+   if captures_flags then
+      SetVariable("captures_flags", serialize.save("captures_flags"))
+   end
+   if current_capture  then
+      SetVariable("current_capture", current_capture)
+   end
+end
+
+-- Returns an array {start, end, text}
+function findURLs(text)
+   local URLs = {}
+   local start, position = 0, 0
+   -- "rex" is a table supplied by MUSHclient for PCRE functionality.
+   local re = rex.new("(?:https?://|mailto:)\\S*[\\w/=@#\\-\\?]")
+   re:gmatch(text,
+      function (link, _)
+         start, position = string.find(text, link, position, true)
+         table.insert(URLs, {start=start, stop=position, text=link})
+      end
+   )
+   return URLs
+end
+
+function reindex_captures()
+   sorted_capture_indices = {}
+   for k,_ in pairs(captures_flags) do
+      table.insert(sorted_capture_indices, k)
+   end
+   table.sort(sorted_capture_indices)
+   
+   if #sorted_capture_indices > 0 then
+      if current_capture then
+         current_capture_index = get_capture_index(current_capture)
+      else
+         current_capture_index = 1
+         current_capture = sorted_capture_indices[1]
+      end
+   else
+      current_capture_index = nil
+      current_capture = nil
+   end
+   OnPluginSaveState()
+end
+
+function add_capture_if_new(capture, prevent_reindex)
+   if not captures_flags[capture] then
+      if capture == "all" then
+         show("Cannot create capture with keyword \"all\".")
+         return
+      end
+      captures_flags[capture] = {active=true, history=true, max_capture_lines=MAX_CAPTURE_LINES, autoecho=true}
+      history_buffer[capture] = {}
+      current_history_line[capture] = 1
+      
+      if not prevent_reindex then
+         reindex_captures()
+      end
+   end
+end
+
+function get_capture_index(capture)
+   for i,v in ipairs(sorted_capture_indices) do
+      if v == capture then
+         return i
+      end
+   end
+end
+
+function sanitize_filename(str)
+   str = string.gsub(str, "[^%w%s()_-]", "")
+   return Trim(str)
+end
+
+function stamp_and_store(capture, msg)
+   local text = ""
+   local log_text = ""
+    
+   -- inject timestamp if wanted
+   timestamp = os.date(date_format)
+   
+   if (log_to_file == 1) then
+      if (log_timestamps == 0) then
+         log_text = msg
+      else
+         log_text = timestamp..msg
+      end
+      local filename = GetInfo(58):gsub("^.\\",GetInfo(56))..sanitize_filename(GetInfo(2)).."CaptureLog.txt"
+      local f, err = io.open (filename, "a+") -- handle to capture log file
+      if f then
+         f:write(log_text.."\n") -- write to it
+         f:close()  -- close that file now
+      else
+         show("CAPTURE LOG ERROR: Failed to access your capture logging file because of the following reason:" )
+         show(err)
+         show("Fix the problem or disable Logging to File in the "..GetPluginInfo(1).." plugin.")
+      end
+   end
+
+   local urls = findURLs(msg)
+   -- store the line
+   add_capture_if_new(capture)
+   if captures_flags[capture].active then
+      if captures_flags[capture].history then
+         if #(history_buffer[capture]) >= captures_flags[capture].max_capture_lines then
+            table.remove(history_buffer[capture], 1) -- remove oldest
+         end
+         table.insert(history_buffer[capture], {["msg"]=msg, ["urls"]=urls, ["timestamp"]=timestamp})
+      else
+         history_buffer[capture][1] = {["msg"]=msg, ["urls"]=urls, ["timestamp"]=timestamp}
+      end
+      if captures_flags[capture].autoecho then
+         show(msg)
+      end
+   end
+end
+
+function list_captures(name, line, wildcards)
+   local flag = Trim(wildcards[1])
+   if flag == "" or flag == "all" then 
+      flag = "known"
+   end
+   if flag=="known" or flag=="active" or flag=="inactive" or flag=="loud" or flag=="quiet" or flag=="history" or flag=="nohistory" then
+      show("The following captures are",flag,":")
+      for k,cflags in pairsByKeys(captures_flags) do
+         if (flag == "known") or (flag=="active" and cflags.active) or (flag=="inactive" and not cflags.active) or (flag=="loud" and cflags.autoecho) or (flag=="quiet" and not cflags.autoecho) or (flag=="history" and cflags.history) or (flag=="nohistory" and not cflags.history) then
+            show(k, cflags.active and "active" or "inactive", cflags.autoecho and "loud" or "quiet", cflags.history and "history" or "no history", cflags.history and #(history_buffer[k]) or "")
+         end
+      end
+   else
+      show("Invalid list option \""..flag.."\". Choices are active, inactive, loud, quiet, history, nohistory, all.")
+   end
+   show("")
+end
+
+function switch_to_capture(capture)
+   local cflags = captures_flags[capture]
+   current_capture = capture
+   local nlines = #(history_buffer[capture])
+   show("Switched to capture for "..capture..".",((cflags.active and cflags.history) and (tostring(nlines).." line"..(nlines==1 and "" or "s").." stored.") or ""),"Flags are", cflags.active and "active" or "inactive", cflags.autoecho and "loud" or "quiet", cflags.history and "history" or "no history")
+   OnPluginSaveState()
+end
+
+function switch_to_capture_by_name(name, line, wildcards)
+   local capture = Trim(wildcards[1])
+   if not captures_flags[capture] then
+      show(capture,"is not a capture.")
+      return
+   end
+   current_capture_index = get_capture_index(capture)
+   switch_to_capture(capture)
+end
+
+function next_capture()
+   if #sorted_capture_indices <= 1 then
+      show("There are no other captures.")
+      return
+   end
+   current_capture_index = current_capture_index+1
+   if current_capture_index > #sorted_capture_indices then
+      current_capture_index = 1
+   end
+   switch_to_capture(sorted_capture_indices[current_capture_index])
+end
+
+function prev_capture()
+   if #sorted_capture_indices <= 1 then
+      show("There are no other captures.")
+      return
+   end
+   current_capture_index = current_capture_index-1
+   if current_capture_index < 1 then
+      current_capture_index = #sorted_capture_indices
+   end
+   switch_to_capture(sorted_capture_indices[current_capture_index])
+end
+
+function next_line()
+   if not current_capture then
+      show("No current capture selected.")
+      return
+   end
+   if not captures_flags[current_capture].history then
+      show("The capture for",current_capture,"does not record history.")
+      return
+   end
+   if #(history_buffer[current_capture]) > 0 then
+      current_history_line[current_capture] = math.min(current_history_line[current_capture]+1, #(history_buffer[current_capture]))
+   end
+   show_line()
+end
+
+function prev_line()
+   if not current_capture then
+      show("No current capture selected.")
+      return
+   end
+   if not captures_flags[current_capture].history then
+      show("The capture for",current_capture,"does not record history.")
+      return
+   end
+   if #(history_buffer[current_capture]) > 0 then
+      current_history_line[current_capture] = math.max(current_history_line[current_capture]-1, 1)
+   end
+   show_line()
+end
+
+function last_line()
+   if not current_capture then
+      show("No current capture selected.")
+      return
+   end
+   if not captures_flags[current_capture].history then
+      show("The capture for",current_capture,"does not record history.")
+      return
+   end
+   if #(history_buffer[current_capture]) > 0 then
+      current_history_line[current_capture] = #(history_buffer[current_capture])
+   end
+   show_line()
+end
+
+function first_line()
+   if not current_capture then
+      show("No current capture selected.")
+      return
+   end
+   if not captures_flags[current_capture].history then
+      show("The capture for",current_capture,"does not record history.")
+      return
+   end
+   if #(history_buffer[current_capture]) > 0 then
+      current_history_line[current_capture] = 1
+   end
+   show_line()
+end
+
+function show_line()
+   if not current_capture then
+      show("No current capture selected.")
+      return
+   end
+   if not captures_flags[current_capture].active then
+      show("Capture for",current_capture,"is disabled.")
+      return
+   end
+   if #(history_buffer[current_capture]) == 0 then
+      show("Capture for",current_capture,"is empty.")
+      return
+   end
+   if captures_flags[current_capture].history then
+      local current_line = current_history_line[current_capture]
+      show(current_capture,"line", current_line, "of", #(history_buffer[current_capture]), "at", history_buffer[current_capture][current_line].timestamp, history_buffer[current_capture][current_line].msg)
+   else
+      show(current_capture,"received at",history_buffer[current_capture][1].timestamp, history_buffer[current_capture][1].msg)
+   end
+end
+
+function delete_line()
+   if not current_capture then
+      show("No current capture selected.")
+      return
+   end
+   local num_lines = #(history_buffer[current_capture])
+   local current_line = current_history_line[current_capture]
+   if num_lines > 0 then
+      show("Deleting line",current_line,"of",num_lines,"from",current_capture,"capture.")
+      table.remove(history_buffer[current_capture], current_line)
+      current_history_line[current_capture] = math.max(math.min(current_history_line[current_capture], num_lines-1),1)
+   end
+   show_line()
+end
+
+function clear_capture()
+   if not current_capture then
+      show("No current capture selected.")
+      return
+   end
+   history_buffer[current_capture] = {}
+   current_history_line[current_capture] = 1
+   show("Capture for",current_capture,"is cleared.")
+end
+
+function echo_off(capture)
+   captures_flags[capture].autoecho = false
+   OnPluginSaveState()
+end
+
+function echo_on(capture)
+   captures_flags[capture].autoecho = true
+   OnPluginSaveState()
+end
+
+function quiet_capture(name, line, wildcards)
+   if not current_capture then
+      show("There are no captures right now.")
+      return
+   end
+   local capture = Trim(wildcards[1])
+   if capture == "" then capture = current_capture end
+   if capture == "all" then
+      for k,v in pairs(captures_flags) do
+         v.autoecho = false
+      end
+      show("Auto speaking for all captures deactivated.")
+      OnPluginSaveState()
+   elseif captures_flags[capture] then
+      echo_off(capture) -- saves
+      show("Auto speaking for",capture,"deactivated.")
+   elseif capture then
+      show(capture,"is not a capture.")
+   end
+end
+
+function loud_capture(name, line, wildcards)
+   if not current_capture then
+      show("There are no captures right now.")
+      return
+   end
+   local capture = Trim(wildcards[1])
+   if capture == "" then capture = current_capture end
+   if capture == "all" then
+      for k,v in pairs(captures_flags) do
+         v.autoecho = true
+      end
+      show("Auto speaking for all captures activated.")
+      OnPluginSaveState()
+   elseif captures_flags[capture] then
+      echo_on(capture) -- saves
+      show("Auto speaking for",capture,"activated.")
+   elseif capture then
+      show(capture,"is not a capture.")
+   end
+end
+
+function remove_capture(name, line, wildcards)
+   if not current_capture then
+      show("There are no captures right now.")
+      return
+   end
+   local capture = Trim(wildcards[1])
+   if capture == "" then 
+      capture = current_capture 
+   end
+   if capture == "all" then
+      -- TODO: verify here
+      history_buffer = {}
+      captures_flags = {}
+      current_history_line = {}
+      current_capture = nil
+      sorted_capture_indices = {}
+      current_capture_index = nil
+      OnPluginSaveState()
+      show("All captures removed.")
+   elseif captures_flags[capture] then
+      if capture == current_capture then
+         next_capture()
+      end
+      history_buffer[capture] = nil
+      current_history_line[capture] = nil
+      captures_flags[capture] = nil
+      reindex_captures() -- saves
+      show("Capture for",capture,"is removed.")
+   else
+      show(capture,"is not a capture.")
+   end
+end
+
+function disable_capture(name, line, wildcards)
+   if current_capture == nil then
+      show("There are no captures right now.")
+      return
+   end
+   local capture = Trim(wildcards[1])
+   if capture == "" then 
+      capture = current_capture 
+   end
+   if capture == "all" then
+      -- TODO: verify here
+      history_buffer = {}
+      current_history_line = {}
+      for k,v in pairs(captures_flags) do
+         v.active = false
+      end
+      show("All captures deactivated.")
+   elseif captures_flags[capture] then
+      if not captures_flags[capture].active then
+         show("Capture for",capture,"is already inactive.")
+      else
+         captures_flags[capture].active = false
+         history_buffer[capture] = nil
+         show("Capture for",capture,"is deactivated.")
+      end
+   else
+      show(capture,"is not a capture.")
+   end
+   OnPluginSaveState()
+end
+
+function enable_capture(name, line, wildcards)
+   if current_capture == nil then
+      show("There are no captures right now.")
+      return
+   end
+   local capture = Trim(wildcards[1])
+   if capture == "" then 
+      capture = current_capture 
+   end
+   local function ena(capture)
+      captures_flags[capture].active = true
+      history_buffer[capture] = {}
+      current_history_line[capture] = 1
+   end
+   if capture == "all" then
+      -- TODO: verify here
+      for k,v in pairs(captures_flags) do
+         ena(k)
+      end
+      show("All captures activated.")
+   elseif captures_flags[capture] then
+      if captures_flags[capture].active then
+         show("Capture for",capture,"is already active.")
+      else
+         ena(capture)
+         reindex_captures()
+         show("Capture for",capture,"is active.")
+      end
+   else
+      show(capture,"is not a capture.")
+   end
+   OnPluginSaveState()
+end
+
+function OnPluginInstall()
+   reindex_captures()
+end
+
+function show(...)
+   print(...) -- replace this with TTS
+end
+
+]]>
+</script>
+</muclient>

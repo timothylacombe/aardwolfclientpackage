@@ -90,6 +90,19 @@
    omit_from_output="y"
 ></trigger>
 
+<trigger
+   enabled="n"
+   name="blank_line"
+   match="^$"
+   regexp="y"
+   sequence="100"
+   omit_from_output="y"
+   send_to="12"
+><send>
+EnableTrigger("blank_line", false)
+</send>
+</trigger>
+
 </triggers>
 
 <aliases>
@@ -100,6 +113,7 @@
    sequence="100"
    ignore_case="y"
 ></alias>
+
 </aliases>
 
 <script>
@@ -114,7 +128,7 @@ require "checkplugin"
 function OnPluginListChanged()
    -- check we have necessary plugins
    do_plugin_check_now("3e7dedbe37e44942dd46d264", "aard_GMCP_handler")
-   do_plugin_check_now("dd10517422bc35b5131a3aa0", "VI_capture_buffers")
+   do_plugin_check_now("dd10517422bc35b5131a3aa0", "VI_captures")
 end
 
 function OnPluginConnect()
@@ -137,10 +151,15 @@ init_channel_names = {
    "pray", "remort_auction", "global_quest", "info", "raidinfo", "claninfo", "warfare",
    "advice", "answer", "auction", "barter", "cant", "claninfo", "clantalk", "curse", "debate", "dtell", "ftalk", "gametalk", "gclan", "gossip", "gratz", "group", "gsocial", "gtell", "helper", "immtalk", "lasertag", "ltalk", "mafiainfo", "market", "mchat", "mobsay", "music", "mxit", "newbie", "nobletalk", "pchat", "pokerinfo", "ptell", "question", "quote", "racetalk", "rauction", "rp", "say", "sports", "spouse", "tech", "tell", "tiertalk", "trivia", "wangrp", "wardrums"
 }
+default_echoed_channels = {
+   ["advice"]=true, ["question"]=true, ["answer"]=true, ["newbie"]=true, ["clantalk"]=true, ["gclan"]=true, ["gtell"]=true, ["mobsay"]=true, ["helper"]=true, ["say"]=true, ["spouse"]=true, ["tell"]=true, ["ftalk"]=true
+}
+
 did_init = (GetVariable("did_init")=="1")
 
 function untagged_info(name, line, wildcards, styles)
    CallPlugin("dd10517422bc35b5131a3aa0", "stamp_and_store", name, line)
+   EnableTrigger("blank_line", true)
 end
 
 function OnPluginBroadcast(msg, id, name, text)
@@ -162,11 +181,17 @@ end
 
 function OnPluginInstall()
    if not did_init then
+      show("Initializing default channel captures.")
       did_init = true
       for i,v in ipairs(init_channel_names) do
-         CallPlugin("dd10517422bc35b5131a3aa0", "add_buffer_if_new", v, true) -- don't reindex every time here, just do it once at the end
+         CallPlugin("dd10517422bc35b5131a3aa0", "add_capture_if_new", v, true) -- don't reindex every time here, just do it once at the end
+         if default_echoed_channels[v] then
+            CallPlugin("dd10517422bc35b5131a3aa0", "echo_on", v)
+         else
+            CallPlugin("dd10517422bc35b5131a3aa0", "echo_off", v)
+         end
       end
-      CallPlugin("dd10517422bc35b5131a3aa0", "reindex_buffers")
+      CallPlugin("dd10517422bc35b5131a3aa0", "reindex_captures")
       OnPluginSaveState()
    end
 end

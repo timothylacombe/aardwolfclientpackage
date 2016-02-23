@@ -94,6 +94,46 @@ Capture buffers with keyboard navigation
 ></alias>
 
 <alias
+   script="latest_url"
+   match="mush capture latest url"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="copy_line"
+   match="mush capture copy line"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="copy_next_url"
+   match="mush capture copy next url"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="copy_prev_url"
+   match="mush capture copy prev url"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="browser_copied_url"
+   match="mush capture browser copied url"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
    script="delete_line"
    match="mush capture delete line"
    enabled="y"
@@ -211,6 +251,8 @@ date_format = GetVariable("date_format") or "%d %b %H:%M:%S"
 log_to_file = tonumber(GetVariable("log_to_file")) or 0
 log_timestamps = tonumber(GetVariable("log_timestamps")) or 1
 
+url_index = nil
+last_url = nil
 history_buffer = {} -- per-session capture storage
 current_history_line = {} -- per-session current line indices for each capture
 current_capture = GetVariable("current_capture") -- which capture is currently viewed
@@ -341,8 +383,24 @@ function stamp_and_store(capture, msg)
       end
       if captures_flags[capture].autoecho then
          show(msg)
+         if #urls > 0 then
+            show("Found",#urls,"url"..(#urls == 1 and "." or "s."))
+            latest_url_capture_index = #history_buffer[capture]
+            latest_url_capture = capture
+         end
       end
    end
+end
+
+function latest_url()
+   if not latest_url_capture then
+      show("No urls seen yet.")
+      return
+   end
+   current_capture = latest_url_capture
+   current_history_line[current_capture] = latest_url_capture_index
+   show("Switching pointer to location of most recent url capture.")
+   show_line()
 end
 
 function list_captures(name, line, wildcards)
@@ -465,6 +523,85 @@ function first_line()
    show_line()
 end
 
+function copy_next_url()
+   if not current_capture then
+      show("No current capture selected.")
+      return
+   end
+   if not captures_flags[current_capture].active then
+      show("Capture for",current_capture,"is disabled.")
+      return
+   end
+   if #(history_buffer[current_capture]) == 0 then
+      show("Capture for",current_capture,"is empty.")
+      return
+   end
+   local current_line = current_history_line[current_capture]
+   local urls = history_buffer[current_capture][current_line].urls
+   local nurls = #urls
+   if nurls > 0 then
+      url_index = (url_index or 0) + 1
+      if url_index > nurls then
+         url_index = 1
+      end
+      last_url = urls[url_index].text
+      SetClipboard(last_url)
+      show("Url copied to clipboard: ", last_url)
+   end
+end
+
+function copy_prev_url()
+   if not current_capture then
+      show("No current capture selected.")
+      return
+   end
+   if not captures_flags[current_capture].active then
+      show("Capture for",current_capture,"is disabled.")
+      return
+   end
+   if #(history_buffer[current_capture]) == 0 then
+      show("Capture for",current_capture,"is empty.")
+      return
+   end
+   local current_line = current_history_line[current_capture]
+   local urls = history_buffer[current_capture][current_line].urls
+   local nurls = #urls
+   if nurls > 0 then
+      url_index = (url_index or (nurls+1)) - 1
+      if url_index < 1 then
+         url_index = nurls
+      end
+      last_url = urls[url_index].text
+      SetClipboard(last_url)
+      show("Url copied to clipboard: ", last_url)
+   end
+end
+
+function browser_copied_url()
+   if OpenBrowser(last_url or "") ~= 0 then
+      show("Error trying to open web browser to",last_url)
+   end
+end
+
+function copy_line()
+   if not current_capture then
+      show("No current capture selected.")
+      return
+   end
+   if not captures_flags[current_capture].active then
+      show("Capture for",current_capture,"is disabled.")
+      return
+   end
+   if #(history_buffer[current_capture]) == 0 then
+      show("Capture for",current_capture,"is empty.")
+      return
+   end
+   local current_line = current_history_line[current_capture]
+   local ln = history_buffer[current_capture][current_line].msg
+   SetClipboard(ln)
+   show("Copied to clipboard: \""..ln.."\"")
+end
+
 function show_line()
    if not current_capture then
       show("No current capture selected.")
@@ -484,6 +621,8 @@ function show_line()
    else
       show(current_capture,"received at",history_buffer[current_capture][1].timestamp, history_buffer[current_capture][1].msg)
    end
+   url_index = nil
+   last_url = nil
 end
 
 function delete_line()

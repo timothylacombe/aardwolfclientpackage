@@ -158,22 +158,6 @@ Capture buffers with keyboard navigation
 ></alias>
 
 <alias
-   script="disable_capture"
-   match="mush capture disable*"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-></alias>
-
-<alias
-   script="enable_capture"
-   match="mush capture enable*"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-></alias>
-
-<alias
    script="loud_capture"
    match="mush capture loud*"
    enabled="y"
@@ -241,6 +225,7 @@ tprint(history_buffer)
 <![CDATA[
 
 require "pairsbykeys"
+dofile(GetInfo(60).."aardwolf_colors.lua")
 MAX_CAPTURE_LINES = 1000
 
 -- date_format = "%d %b %H:%M:%S"   -- 30 Aug 13:29:49   date and time 24 hour
@@ -256,13 +241,11 @@ last_url = nil
 history_buffer = {} -- per-session capture storage
 current_history_line = {} -- per-session current line indices for each capture
 current_capture = GetVariable("current_capture") -- which capture is currently viewed
-loadstring(GetVariable("captures_flags") or "captures_flags = {}")() -- store which captures are active/quiet/loud/etc
+loadstring(GetVariable("captures_flags") or "captures_flags = {}")() -- store which captures are quiet/loud/etc
 
 for k,v in pairs(captures_flags) do
-   if v.active == true then
-      history_buffer[k] = {}
-      current_history_line[k] = 1
-   end
+   history_buffer[k] = {}
+   current_history_line[k] = 1
 end
 sorted_capture_indices = {}
    
@@ -321,7 +304,7 @@ function add_capture_if_new(capture, prevent_reindex)
          show("Cannot create capture with keyword \"all\".")
          return
       end
-      captures_flags[capture] = {active=true, history=true, max_capture_lines=MAX_CAPTURE_LINES, autoecho=true}
+      captures_flags[capture] = {history=true, max_capture_lines=MAX_CAPTURE_LINES, autoecho=true}
       history_buffer[capture] = {}
       current_history_line[capture] = 1
       
@@ -347,6 +330,8 @@ end
 function stamp_and_store(capture, msg)
    local text = ""
    local log_text = ""
+   
+   msg = strip_colours(msg)
     
    -- inject timestamp if wanted
    timestamp = os.date(date_format)
@@ -372,22 +357,20 @@ function stamp_and_store(capture, msg)
    local urls = findURLs(msg)
    -- store the line
    add_capture_if_new(capture)
-   if captures_flags[capture].active then
-      if captures_flags[capture].history then
-         if #(history_buffer[capture]) >= captures_flags[capture].max_capture_lines then
-            table.remove(history_buffer[capture], 1) -- remove oldest
-         end
-         table.insert(history_buffer[capture], {["msg"]=msg, ["urls"]=urls, ["timestamp"]=timestamp})
-      else
-         history_buffer[capture][1] = {["msg"]=msg, ["urls"]=urls, ["timestamp"]=timestamp}
+   if captures_flags[capture].history then
+      if #(history_buffer[capture]) >= captures_flags[capture].max_capture_lines then
+         table.remove(history_buffer[capture], 1) -- remove oldest
       end
-      if captures_flags[capture].autoecho then
-         show(msg)
-         if #urls > 0 then
-            show("Found",#urls,"url"..(#urls == 1 and "." or "s."))
-            latest_url_capture_index = #history_buffer[capture]
-            latest_url_capture = capture
-         end
+      table.insert(history_buffer[capture], {["msg"]=msg, ["urls"]=urls, ["timestamp"]=timestamp})
+   else
+      history_buffer[capture][1] = {["msg"]=msg, ["urls"]=urls, ["timestamp"]=timestamp}
+   end
+   if captures_flags[capture].autoecho then
+      show(msg)
+      if #urls > 0 then
+         show("Found",#urls,"url"..(#urls == 1 and "." or "s."))
+         latest_url_capture_index = #history_buffer[capture]
+         latest_url_capture = capture
       end
    end
 end
@@ -408,15 +391,15 @@ function list_captures(name, line, wildcards)
    if flag == "" or flag == "all" then 
       flag = "known"
    end
-   if flag=="known" or flag=="active" or flag=="inactive" or flag=="loud" or flag=="quiet" or flag=="history" or flag=="nohistory" then
+   if flag=="known" or flag=="loud" or flag=="quiet" or flag=="history" or flag=="nohistory" then
       show("The following captures are",flag,":")
       for k,cflags in pairsByKeys(captures_flags) do
-         if (flag == "known") or (flag=="active" and cflags.active) or (flag=="inactive" and not cflags.active) or (flag=="loud" and cflags.autoecho) or (flag=="quiet" and not cflags.autoecho) or (flag=="history" and cflags.history) or (flag=="nohistory" and not cflags.history) then
-            show(k, cflags.active and "active" or "inactive", cflags.autoecho and "loud" or "quiet", cflags.history and "history" or "no history", cflags.history and #(history_buffer[k]) or "")
+         if (flag == "known") or (flag=="loud" and cflags.autoecho) or (flag=="quiet" and not cflags.autoecho) or (flag=="history" and cflags.history) or (flag=="nohistory" and not cflags.history) then
+            show(k, cflags.autoecho and "loud" or "quiet", cflags.history and "history" or "no history", cflags.history and #(history_buffer[k]) or "")
          end
       end
    else
-      show("Invalid list option \""..flag.."\". Choices are active, inactive, loud, quiet, history, nohistory, all.")
+      show("Invalid list option \""..flag.."\". Choices are loud, quiet, history, nohistory, all.")
    end
    show("")
 end
@@ -425,7 +408,7 @@ function switch_to_capture(capture)
    local cflags = captures_flags[capture]
    current_capture = capture
    local nlines = #(history_buffer[capture])
-   show("Switched to capture for "..capture..".",((cflags.active and cflags.history) and (tostring(nlines).." line"..(nlines==1 and "" or "s").." stored.") or ""),"Flags are", cflags.active and "active" or "inactive", cflags.autoecho and "loud" or "quiet", cflags.history and "history" or "no history")
+   show("Switched to capture for "..capture..".",(cflags.history and (tostring(nlines).." line"..(nlines==1 and "" or "s").." stored.") or ""),"Flags are", cflags.autoecho and "loud" or "quiet", cflags.history and "history" or "no history")
    OnPluginSaveState()
 end
 
@@ -528,10 +511,6 @@ function copy_next_url()
       show("No current capture selected.")
       return
    end
-   if not captures_flags[current_capture].active then
-      show("Capture for",current_capture,"is disabled.")
-      return
-   end
    if #(history_buffer[current_capture]) == 0 then
       show("Capture for",current_capture,"is empty.")
       return
@@ -553,10 +532,6 @@ end
 function copy_prev_url()
    if not current_capture then
       show("No current capture selected.")
-      return
-   end
-   if not captures_flags[current_capture].active then
-      show("Capture for",current_capture,"is disabled.")
       return
    end
    if #(history_buffer[current_capture]) == 0 then
@@ -588,10 +563,6 @@ function copy_line()
       show("No current capture selected.")
       return
    end
-   if not captures_flags[current_capture].active then
-      show("Capture for",current_capture,"is disabled.")
-      return
-   end
    if #(history_buffer[current_capture]) == 0 then
       show("Capture for",current_capture,"is empty.")
       return
@@ -605,10 +576,6 @@ end
 function show_line()
    if not current_capture then
       show("No current capture selected.")
-      return
-   end
-   if not captures_flags[current_capture].active then
-      show("Capture for",current_capture,"is disabled.")
       return
    end
    if #(history_buffer[current_capture]) == 0 then
@@ -733,71 +700,6 @@ function remove_capture(name, line, wildcards)
    else
       show(capture,"is not a capture.")
    end
-end
-
-function disable_capture(name, line, wildcards)
-   if current_capture == nil then
-      show("There are no captures right now.")
-      return
-   end
-   local capture = Trim(wildcards[1])
-   if capture == "" then 
-      capture = current_capture 
-   end
-   if capture == "all" then
-      -- TODO: verify here
-      history_buffer = {}
-      current_history_line = {}
-      for k,v in pairs(captures_flags) do
-         v.active = false
-      end
-      show("All captures deactivated.")
-   elseif captures_flags[capture] then
-      if not captures_flags[capture].active then
-         show("Capture for",capture,"is already inactive.")
-      else
-         captures_flags[capture].active = false
-         history_buffer[capture] = nil
-         show("Capture for",capture,"is deactivated.")
-      end
-   else
-      show(capture,"is not a capture.")
-   end
-   OnPluginSaveState()
-end
-
-function enable_capture(name, line, wildcards)
-   if current_capture == nil then
-      show("There are no captures right now.")
-      return
-   end
-   local capture = Trim(wildcards[1])
-   if capture == "" then 
-      capture = current_capture 
-   end
-   local function ena(capture)
-      captures_flags[capture].active = true
-      history_buffer[capture] = {}
-      current_history_line[capture] = 1
-   end
-   if capture == "all" then
-      -- TODO: verify here
-      for k,v in pairs(captures_flags) do
-         ena(k)
-      end
-      show("All captures activated.")
-   elseif captures_flags[capture] then
-      if captures_flags[capture].active then
-         show("Capture for",capture,"is already active.")
-      else
-         ena(capture)
-         reindex_captures()
-         show("Capture for",capture,"is active.")
-      end
-   else
-      show(capture,"is not a capture.")
-   end
-   OnPluginSaveState()
 end
 
 function OnPluginInstall()

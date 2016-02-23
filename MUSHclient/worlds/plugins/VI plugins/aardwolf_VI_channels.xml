@@ -91,6 +91,17 @@
 ></trigger>
 
 <trigger
+   enabled="y"
+   name="blessing"
+   match="^BLESSING: Your daily blessing is available\.$"
+   regexp="y"
+   script="untagged_info"
+   sequence="100"
+   omit_from_output="y"
+></trigger>
+
+
+<trigger
    enabled="n"
    name="blank_line"
    match="^$"
@@ -105,24 +116,12 @@ EnableTrigger("blank_line", false)
 
 </triggers>
 
-<aliases>
-<alias
-   script="init_channels"
-   match="mush channels reinit"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-></alias>
-
-</aliases>
-
 <script>
 <![CDATA[
 
 require "gmcphelper"
-dofile(GetInfo(60).."aardwolf_colors.lua")
 
-capture_donations = tonumber(GetVariable("capture_donations")) or 1
+capture_donations = tonumber(GetVariable("capture_donations")) or 0
 
 require "checkplugin"
 function OnPluginListChanged()
@@ -143,19 +142,8 @@ function OnPluginEnable()
 end
 
 function OnPluginSaveState()
-   SetVariable("did_init", did_init and "1" or "0")
    SetVariable("capture_donations", capture_donations)
 end
-
-init_channel_names = {
-   "pray", "remort_auction", "global_quest", "info", "raidinfo", "claninfo", "warfare",
-   "advice", "answer", "auction", "barter", "cant", "claninfo", "clantalk", "curse", "debate", "dtell", "ftalk", "gametalk", "gclan", "gossip", "gratz", "group", "gsocial", "gtell", "helper", "immtalk", "lasertag", "ltalk", "mafiainfo", "market", "mchat", "mobsay", "music", "mxit", "newbie", "nobletalk", "pchat", "pokerinfo", "ptell", "question", "quote", "racetalk", "rauction", "rp", "say", "sports", "spouse", "tech", "tell", "tiertalk", "trivia", "wangrp", "wardrums"
-}
-default_echoed_channels = {
-   ["advice"]=true, ["question"]=true, ["answer"]=true, ["newbie"]=true, ["clantalk"]=true, ["gclan"]=true, ["gtell"]=true, ["mobsay"]=true, ["helper"]=true, ["say"]=true, ["spouse"]=true, ["tell"]=true, ["ftalk"]=true
-}
-
-did_init = (GetVariable("did_init")=="1")
 
 function untagged_info(name, line, wildcards, styles)
    CallPlugin("dd10517422bc35b5131a3aa0", "stamp_and_store", name, line)
@@ -170,7 +158,7 @@ function OnPluginBroadcast(msg, id, name, text)
          luastmt = "gmcpdata = " .. gmcparg
          assert (loadstring (luastmt or ""))()
 
-         msg = strip_colours(gmcpdata.msg or "")
+         msg = gmcpdata.msg or ""
          chan = gmcpdata.chan or ""
          if (capture_donations == 1 or string.match(msg, "^CLAN ANNOUNCEMENT: %a+ has donated") == nil) then
             CallPlugin("dd10517422bc35b5131a3aa0", "stamp_and_store", chan, msg)
@@ -180,29 +168,6 @@ function OnPluginBroadcast(msg, id, name, text)
 end
 
 function OnPluginInstall()
-   if not did_init then
-      show("Initializing default channel captures.")
-      did_init = true
-      for i,v in ipairs(init_channel_names) do
-         CallPlugin("dd10517422bc35b5131a3aa0", "add_capture_if_new", v, true) -- don't reindex every time here, just do it once at the end
-         if default_echoed_channels[v] then
-            CallPlugin("dd10517422bc35b5131a3aa0", "echo_on", v)
-         else
-            CallPlugin("dd10517422bc35b5131a3aa0", "echo_off", v)
-         end
-      end
-      CallPlugin("dd10517422bc35b5131a3aa0", "reindex_captures")
-      OnPluginSaveState()
-   end
-end
-
-function init_channels()
-   did_init = false
-   OnPluginInstall()
-end
-
-function show(...)
-   print(...) -- replace this with TTS
 end
 
 ]]>

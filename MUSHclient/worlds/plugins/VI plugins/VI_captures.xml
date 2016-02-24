@@ -615,6 +615,7 @@ function quiet_capture(name, line, wildcards)
    local capture = Trim(wildcards[1])
    if capture == "" then capture = current_capture end
    if capture == "all" then
+      -- TODO: verify here
       for k,v in pairs(captures_flags) do
          v.autoecho = false
       end
@@ -636,6 +637,7 @@ function loud_capture(name, line, wildcards)
    local capture = Trim(wildcards[1])
    if capture == "" then capture = current_capture end
    if capture == "all" then
+      -- TODO: verify here
       for k,v in pairs(captures_flags) do
          v.autoecho = true
       end
@@ -687,7 +689,8 @@ function OnPluginInstall()
 end
 
 function show(...)
-   print(...) -- replace this with TTS
+   print(table.concat({...}," ")) -- replace this with TTS
+   --CallPlugin ("463242566069ebfd1b379ec1", "say", table.concat({...}," "))
 end
 
 ]]>

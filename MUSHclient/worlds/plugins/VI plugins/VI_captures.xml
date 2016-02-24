@@ -87,7 +87,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="show_line"
-   match="mush capture show line"
+   match="mush capture show"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -103,7 +103,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="copy_line"
-   match="mush capture copy line"
+   match="mush capture copy"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -180,17 +180,12 @@ Capture buffers with keyboard navigation
    ignore_case="y"
    send_to="12"
 ><send>
-   for k, v in pairs(GetPluginAliasList(GetPluginID())) do
-      match = GetPluginAliasOption(GetPluginID(), v, "match")
-      if match ~= "mush capture debug" and match ~= "mush capture destroy" then
-         show(match)
-      end
-   end
+show("Detailed help for the VI_captures plugin is included in a text file called VI_captures_README.txt in the same location as the plugin.")
 </send>
 </alias>
 
 <alias
-   match="mush capture destroy"
+   match="mush capture destroy all"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -200,22 +195,7 @@ captures_flags = {}
 current_capture = nil
 DeleteVariable("captures_flags")
 DeleteVariable("current_capture")
-</send>
-</alias>
-
-<alias
-   match="mush capture debug"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-   send_to="12"
-><send>
-require "tprint"
-print(current_capture)
-print(current_capture_index)
-tprint(captures_flags)
-tprint(sorted_capture_indices)
-tprint(history_buffer)
+OnPluginSaveState()
 </send>
 </alias>
 

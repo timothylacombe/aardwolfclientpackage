@@ -15,7 +15,7 @@
    >
    
 <description trim="y">
-Type:
+Text To Speech Plugin Commands:
 
  sapi on            --> turn on speaking
  sapi off           --> turn off speaking of MUD output
@@ -29,7 +29,6 @@ Type:
 Other scripts can speak stuff by doing:
 
  CallPlugin ("463242566069ebfd1b379ec1", "say", "What to say")
-
 </description>
 </plugin>
 
@@ -130,6 +129,20 @@ Other scripts can speak stuff by doing:
   >
   </alias>
     
+  <alias
+   match="sapi help"
+   enabled="n"
+   omit_from_log="y"
+   omit_from_output="y"
+   sequence="100"
+   group="speech"
+   send_to="12"
+  ><send>
+     Note()
+     Note(GetPluginInfo(GetPluginID(), 3))
+     Note()
+   </send>
+  </alias>
 </aliases>
 
 <triggers>

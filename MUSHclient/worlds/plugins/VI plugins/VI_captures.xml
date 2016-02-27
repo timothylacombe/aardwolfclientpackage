@@ -199,6 +199,17 @@ OnPluginSaveState()
 </send>
 </alias>
 
+<alias
+   match="mush capture debug"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+   send_to="12"
+><send>
+show_captures = not show_captures
+</send>
+</alias>
+
 </aliases>
 
 <script>
@@ -222,6 +233,7 @@ history_buffer = {} -- per-session capture storage
 current_history_line = {} -- per-session current line indices for each capture
 current_capture = GetVariable("current_capture") -- which capture is currently viewed
 loadstring(GetVariable("captures_flags") or "captures_flags = {}")() -- store which captures are quiet/loud/etc
+show_captures = false
 
 for k,v in pairs(captures_flags) do
    history_buffer[k] = {}
@@ -346,9 +358,9 @@ function stamp_and_store(capture, msg)
       history_buffer[capture][1] = {["msg"]=msg, ["urls"]=urls, ["timestamp"]=timestamp}
    end
    if captures_flags[capture].autoecho then
-      show(msg)
+      show(capture, msg)
       if #urls > 0 then
-         show("Found",#urls,"url"..(#urls == 1 and "." or "s."))
+         show("Found",#urls,"URL"..(#urls == 1 and "." or "s."))
          latest_url_capture_index = #history_buffer[capture]
          latest_url_capture = capture
       end
@@ -362,7 +374,7 @@ function latest_url()
    end
    current_capture = latest_url_capture
    current_history_line[current_capture] = latest_url_capture_index
-   show("Switching pointer to location of most recent url capture.")
+   show("Switching pointer to location of most recent URL capture.")
    show_line()
 end
 
@@ -505,7 +517,7 @@ function copy_next_url()
       end
       last_url = urls[url_index].text
       SetClipboard(last_url)
-      show("Url copied to clipboard: ", last_url)
+      show("URL copied to clipboard: ", last_url)
    end
 end
 
@@ -528,7 +540,7 @@ function copy_prev_url()
       end
       last_url = urls[url_index].text
       SetClipboard(last_url)
-      show("Url copied to clipboard: ", last_url)
+      show("URL copied to clipboard: ", last_url)
    end
 end
 
@@ -689,8 +701,10 @@ function OnPluginInstall()
 end
 
 function show(...)
-   print(table.concat({...}," ")) -- replace this with TTS
-   --CallPlugin ("463242566069ebfd1b379ec1", "say", table.concat({...}," "))
+   if show_captures then
+      DoAfterNote (0.1, table.concat({...},' ')) -- replace this with TTS
+   end   
+   CallPlugin ("463242566069ebfd1b379ec1", "say", table.concat({...}," "))
 end
 
 ]]>

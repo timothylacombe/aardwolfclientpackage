@@ -142,47 +142,47 @@ Other scripts can speak stuff by doing:
 <![CDATA[
 
 -- turn on speaking
-function speak_on(name, line, wildcards)
+function speak_on (name, line, wildcards)
   speak = true
   SetVariable("speak", speak and "1" or "0")
   talk:Speak("Sapi auto speak now activated.", SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFlagsAsync)
 end -- function speak_on
 
 -- turn off speaking
-function speak_off(name, line, wildcards)
+function speak_off (name, line, wildcards)
   speak = false
   SetVariable("speak", speak and "1" or "0")
   talk:Speak("Sapi auto speak now deactivated.", SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFlagsAsync)
 end -- function speak_off
 
 -- skip a sentence
-function speak_skip(name, line, wildcards)
+function speak_skip (name, line, wildcards)
   talk:Skip("Sentence", 1)
 end -- function speak_skip
 
-function speak_faster(name, line, wildcards)
+function speak_faster (name, line, wildcards)
   talk.Rate = talk.Rate + 1
-  SetVariable("talk.Rate", talk.Rate)
+  SetVariable("talk_Rate", talk.Rate)
   speak_test()
 end
 
-function speak_slower(name, line, wildcards)
+function speak_slower (name, line, wildcards)
   talk.Rate = talk.Rate - 1
-  SetVariable("talk.Rate", talk.Rate)
+  SetVariable("talk_Rate", talk.Rate)
   speak_test()
 end
 
-function speak_rate(name, line, wildcards)
+function speak_rate (name, line, wildcards)
   if tonumber(wildcards[1]) then
     talk.Rate = tonumber(wildcards[1])
-    SetVariable("talk.Rate", talk.Rate)
+    SetVariable("talk_Rate", talk.Rate)
     speak_test()
   else
     talk:Speak("Invalid Sapi rate \""..wildcards[1].."\"")
   end
 end
 
-function speak_next_voice(name, line, wildcards)
+function speak_next_voice (name, line, wildcards)
   current_voice_index = current_voice_index + 1
   if current_voice_index >= NUM_SAPI_VOICES then
     current_voice_index = 0
@@ -198,12 +198,12 @@ function speak_next_voice(name, line, wildcards)
   speak_test()
 end
 
-function speak_test(name, line, wildcards)
+function speak_test (name, line, wildcards)
   say("This is a demonstration of "..talk.Voice:GetDescription().." speaking at rate " .. tostring(talk.Rate))
 end
 
 -- installation
-function OnPluginInstall()
+function OnPluginInstall ()
 
   -- load Lua COM
   require "luacom"
@@ -220,10 +220,11 @@ function OnPluginInstall()
   SAPI_ENUMS = luacom.GetTypeInfo(talk):GetTypeLib():ExportEnumerations()
   NUM_SAPI_VOICES = talk:GetVoices().Count
   assert(NUM_SAPI_VOICES > 0, "No SAPI voices found.")
-  current_voice = GetVariable("talk_Voice_ID")
-  current_voice_index = 0
+
+  current_voice = GetVariable("talk_Voice_ID") or talk.Voice.ID
 
   -- find index of saved voice
+  current_voice_index = 0
   local enumerate_voices = luacom.GetEnumerator(talk:GetVoices())
   local voice = enumerate_voices:Next()
   local i = 0
@@ -237,7 +238,7 @@ function OnPluginInstall()
   end
 
   talk:setVoice(talk:GetVoices():Item(current_voice_index)) -- luacom can't do `talk.Voice =`
-  talk.Rate = GetVariable("talk.Rate") or 5
+  talk.Rate = GetVariable("talk_Rate") or talk.Rate
   speak = (GetVariable("speak") == "1")
 
   EnableGroup("speech", true)
@@ -247,7 +248,7 @@ function OnPluginInstall()
 end -- function OnPluginInstall
 
 -- here to draw the screen
-function OnPluginScreendraw(t, log, line)
+function OnPluginScreendraw (t, log, line)
 
   if (t == 0 or t == 1) and speak then
     say(line)
@@ -257,7 +258,7 @@ end -- function
 
 -- Speak from other scripts
 -- eg. CallPlugin ("463242566069ebfd1b379ec1", "say", "What to say")
-function say(what)
+function say (what)
 
   -- check loaded
   if not talk then

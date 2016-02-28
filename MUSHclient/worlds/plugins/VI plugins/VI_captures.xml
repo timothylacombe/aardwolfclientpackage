@@ -180,26 +180,27 @@ Capture buffers with keyboard navigation
    ignore_case="y"
    send_to="12"
 ><send>
-show("Detailed help for the VI captures plug-in is included in a text file called VI_captures_README.txt in the same location as the plug-in.")
-show("Available commands are:")
-show("mush capture switch")
-show("mush capture next")
-show("mush capture prev")
-show("mush capture list")
-show("mush capture next line")
-show("mush capture prev line")
-show("mush capture first line")
-show("mush capture last line")
-show("mush capture show")
-show("mush capture copy")
-show("mush capture copy next url")
-show("mush capture copy prev url")
-show("mush capture browse copied url")
-show("mush capture delete line")
-show("mush capture clear")
-show("mush capture remove")
-show("mush capture loud")
-show("mush capture quiet")
+stamp_and_store("help","Detailed help for the VI captures plug-in is included in a text file called VI_captures_README.txt in the same location as the plug-in.")
+stamp_and_store("help","Available commands are:")
+stamp_and_store("help","mush capture switch")
+stamp_and_store("help","mush capture next")
+stamp_and_store("help","mush capture prev")
+stamp_and_store("help","mush capture list")
+stamp_and_store("help","mush capture next line")
+stamp_and_store("help","mush capture prev line")
+stamp_and_store("help","mush capture first line")
+stamp_and_store("help","mush capture last line")
+stamp_and_store("help","mush capture show")
+stamp_and_store("help","mush capture copy")
+stamp_and_store("help","mush capture copy next url")
+stamp_and_store("help","mush capture copy prev url")
+stamp_and_store("help","mush capture browse copied url")
+stamp_and_store("help","mush capture delete line")
+stamp_and_store("help","mush capture clear")
+stamp_and_store("help","mush capture remove")
+stamp_and_store("help","mush capture loud")
+stamp_and_store("help","mush capture quiet")
+stamp_and_store("help","This information has been stored in the [help] capture.")
 </send>
 </alias>
 
@@ -330,9 +331,7 @@ function stamp_and_store(capture, msg)
    local text = ""
    local log_text = ""
    
-   msg = strip_colours(msg)
-    
-   -- inject timestamp if wanted
+   msg = strip_colours(msg)    
    timestamp = os.date(date_format)
    
    if (log_to_file == 1) then
@@ -367,7 +366,7 @@ function stamp_and_store(capture, msg)
    if captures_flags[capture].autoecho then
       show(capture, msg)
       if #urls > 0 then
-         show("Found",#urls,"URL"..(#urls == 1 and "." or "s."))
+         show("Found"..tostring(#urls).." URL"..(#urls == 1 and "" or "s"))
          latest_url_capture_index = #history_buffer[capture]
          latest_url_capture = capture
       end
@@ -391,14 +390,14 @@ function list_captures(name, line, wildcards)
       flag = "known"
    end
    if flag=="known" or flag=="loud" or flag=="quiet" or flag=="history" or flag=="nohistory" then
-      show("The following captures are",flag,":")
+      show("The following captures are "..flag..":")
       for k,cflags in pairsByKeys(captures_flags) do
          if (flag == "known") or (flag=="loud" and cflags.autoecho) or (flag=="quiet" and not cflags.autoecho) or (flag=="history" and cflags.history) or (flag=="nohistory" and not cflags.history) then
             show(k, cflags.autoecho and "loud" or "quiet", cflags.history and "history" or "no history", cflags.history and #(history_buffer[k]) or "")
          end
       end
    else
-      show("Invalid list option \""..flag.."\". Choices are loud, quiet, history, nohistory, all.")
+      show("In-valid list option \""..flag.."\". Choices are loud, quiet, history, nohistory, all.")
    end
    show("")
 end
@@ -407,7 +406,7 @@ function switch_to_capture(capture)
    local cflags = captures_flags[capture]
    current_capture = capture
    local nlines = #(history_buffer[capture])
-   show("Switched to capture for "..capture..".",(cflags.history and (tostring(nlines).." line"..(nlines==1 and "" or "s").." stored.") or ""),"Flags are", cflags.autoecho and "loud" or "quiet", cflags.history and "history" or "no history")
+   show("Switched to capture for "..capture,(cflags.history and (tostring(nlines).." line"..(nlines==1 and "" or "s").." stored") or ""),"Flags are", cflags.autoecho and "loud" or "quiet", cflags.history and "history" or "no history")
    OnPluginSaveState()
 end
 
@@ -583,9 +582,9 @@ function show_line()
    end
    if captures_flags[current_capture].history then
       local current_line = current_history_line[current_capture]
-      show(current_capture,"line", current_line, "of", #(history_buffer[current_capture]), "at", history_buffer[current_capture][current_line].timestamp, history_buffer[current_capture][current_line].msg)
+      show(current_capture,"line "..tostring(current_line).." of "..tostring(#(history_buffer[current_capture])), "at "..history_buffer[current_capture][current_line].timestamp, history_buffer[current_capture][current_line].msg)
    else
-      show(current_capture,"received at",history_buffer[current_capture][1].timestamp, history_buffer[current_capture][1].msg)
+      show(current_capture,"received at "..history_buffer[current_capture][1].timestamp, history_buffer[current_capture][1].msg)
    end
    url_index = nil
    last_url = nil
@@ -708,7 +707,7 @@ function OnPluginInstall()
 end
 
 function show(...)
-   CallPlugin ("463242566069ebfd1b379ec1", "say", table.concat({...}," "))
+   CallPlugin ("463242566069ebfd1b379ec1", "say", table.concat({...},", "))
 end
 
 ]]>

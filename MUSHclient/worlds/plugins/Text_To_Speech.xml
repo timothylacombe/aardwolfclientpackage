@@ -17,16 +17,18 @@
 <description trim="y">
 Text To Speech Plugin Commands:
 
- sapi on            --> turn on speaking
- sapi off           --> turn off speaking of MUD output
- sapi skip          --> skips one sentence in output stream
- sapi faster        --> speeds speech up
- sapi slower        --> slows speech down
- sapi rate [number] --> set speech rate to [number]
- sapi voice         --> switch to the next available TTS voice
- sapi test          --> speak a test phrase
- 
-Other scripts can speak stuff by doing:
+ sapi on             : turn on speaking
+ sapi off            : turn off speaking of MUD output
+ sapi skip           : skips one sentence in output stream
+ sapi faster         : speeds speech up
+ sapi slower         : slows speech down
+ sapi rate [number]  : set speech rate to [number]
+ sapi list voices    : list the available TTS voices
+ sapi voice [number] : switch to the given TTS voice
+ sapi test           : speak a test phrase
+ sapi say [text]     : speak the given text
+
+Scripts can also speak stuff by doing:
 
  CallPlugin ("463242566069ebfd1b379ec1", "say", "What to say")
 </description>
@@ -83,12 +85,25 @@ Other scripts can speak stuff by doing:
   </alias>
     
   <alias
-   match="sapi voice"
+   match="^sapi voice( .+)?$"
+   regexp="y"
    enabled="n"
    omit_from_command_history="y"
    omit_from_log="y"
    omit_from_output="y"
-   script="speak_next_voice"
+   script="speak_choose_voice"
+   sequence="100"
+   group="speech"
+  >
+  </alias>
+  
+  <alias
+   match="sapi list voices"
+   enabled="n"
+   omit_from_command_history="y"
+   omit_from_log="y"
+   omit_from_output="y"
+   script="list_voices"
    sequence="100"
    group="speech"
   >
@@ -127,6 +142,21 @@ Other scripts can speak stuff by doing:
    sequence="100"
    group="speech"
   >
+  </alias>
+  
+  <alias
+   match="^sapi say (.*)$"
+   regexp="y"
+   enabled="n"
+   omit_from_log="y"
+   omit_from_output="y"
+   sequence="100"
+   group="speech"
+   send_to="12"
+  >
+  <send>
+    say("%1")
+  </send>
   </alias>
     
   <alias
@@ -208,24 +238,46 @@ function speak_rate (name, line, wildcards)
   end
 end
 
-function speak_next_voice (name, line, wildcards)
-  current_voice_index = current_voice_index + 1
-  if current_voice_index >= NUM_SAPI_VOICES then
-    current_voice_index = 0
-  end
-  local new_voice = talk:GetVoices():Item(current_voice_index)
-  if NUM_SAPI_VOICES > 1 and new_voice.ID == "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\SampleTTSVoice" then
-    -- sample TTS voice from the SDK uselessly just says "blah blah blah"
-    speak_next_voice()
+function speak_choose_voice (name, line, wildcards)
+  local new_voice = nil
+  local param = Trim(wildcards[1])
+  local voice_number = tonumber(param)
+  if voice_number~=nil and voice_number >= 1 and voice_number <= NUM_SAPI_VOICES and talk:GetVoices():Item(voice_number-1).ID ~= "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\SampleTTSVoice" then
+    current_voice_index = voice_number-1
+    new_voice = talk:GetVoices():Item(current_voice_index)
+  else
+    if param ~= "" then
+      say(param.." is not a valid SAPI voice number.")
+    else
+      say("The SAPI voice command must be given a number corresponding to the desired voice.")
+    end
+    list_voices()
     return
   end
+  
   talk:setVoice(new_voice) -- luacom can't do `talk.Voice =`
   SetVariable("talk_Voice_ID", talk.Voice.ID)
   speak_test()
 end
 
 function speak_test (name, line, wildcards)
-  say("This is a demonstration of "..talk.Voice:GetDescription().." speaking at rate " .. tostring(talk.Rate))
+  say("SAPI speech currently set to voice number "..tostring(current_voice_index+1)..", "..talk.Voice:GetDescription()..", speaking at rate " .. tostring(talk.Rate))
+end
+
+function list_voices (name, line, wildcards)
+  local enumerate_voices = luacom.GetEnumerator(talk:GetVoices())
+  local voice = enumerate_voices:Next()
+  local i = 0
+  while voice do
+    if voice.ID ~= "HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Speech\\Voices\\Tokens\\SampleTTSVoice" then
+      talk:setVoice(voice)
+      say("Voice number "..tostring(i+1).." is "..voice:GetDescription())
+    end
+    i = i + 1
+    voice = enumerate_voices:Next()
+  end
+  talk:setVoice(talk:GetVoices():Item(current_voice_index))
+  say("Type sapi voice [number] to set the desired SAPI voice.")
 end
 
 -- installation
@@ -263,7 +315,7 @@ function OnPluginInstall ()
     voice = enumerate_voices:Next()
   end
 
-  talk:setVoice(talk:GetVoices():Item(current_voice_index)) -- luacom can't do `talk.Voice =`
+  talk:setVoice(voice) -- luacom can't do `talk.Voice =`
   talk.Rate = GetVariable("talk_Rate") or talk.Rate
   speak = (GetVariable("speak") == "1")
   show_spoken_lines = false

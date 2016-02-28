@@ -127,7 +127,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="browser_copied_url"
-   match="mush capture browser copied url"
+   match="mush capture browse copied url"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -180,7 +180,26 @@ Capture buffers with keyboard navigation
    ignore_case="y"
    send_to="12"
 ><send>
-show("Detailed help for the VI_captures plugin is included in a text file called VI_captures_README.txt in the same location as the plugin.")
+show("Detailed help for the VI captures plug-in is included in a text file called VI_captures_README.txt in the same location as the plug-in.")
+show("Available commands are:")
+show("mush capture switch")
+show("mush capture next")
+show("mush capture prev")
+show("mush capture list")
+show("mush capture next line")
+show("mush capture prev line")
+show("mush capture first line")
+show("mush capture last line")
+show("mush capture show")
+show("mush capture copy")
+show("mush capture copy next url")
+show("mush capture copy prev url")
+show("mush capture browse copied url")
+show("mush capture delete line")
+show("mush capture clear")
+show("mush capture remove")
+show("mush capture loud")
+show("mush capture quiet")
 </send>
 </alias>
 
@@ -196,17 +215,6 @@ current_capture = nil
 DeleteVariable("captures_flags")
 DeleteVariable("current_capture")
 OnPluginSaveState()
-</send>
-</alias>
-
-<alias
-   match="mush capture debug"
-   enabled="y"
-   sequence="100"
-   ignore_case="y"
-   send_to="12"
-><send>
-show_captures = not show_captures
 </send>
 </alias>
 
@@ -233,7 +241,6 @@ history_buffer = {} -- per-session capture storage
 current_history_line = {} -- per-session current line indices for each capture
 current_capture = GetVariable("current_capture") -- which capture is currently viewed
 loadstring(GetVariable("captures_flags") or "captures_flags = {}")() -- store which captures are quiet/loud/etc
-show_captures = false
 
 for k,v in pairs(captures_flags) do
    history_buffer[k] = {}
@@ -701,9 +708,6 @@ function OnPluginInstall()
 end
 
 function show(...)
-   if show_captures then
-      DoAfterNote (0.1, table.concat({...},' ')) -- replace this with TTS
-   end   
    CallPlugin ("463242566069ebfd1b379ec1", "say", table.concat({...}," "))
 end
 

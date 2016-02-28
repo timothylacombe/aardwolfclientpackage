@@ -143,6 +143,19 @@ Other scripts can speak stuff by doing:
      Note()
    </send>
   </alias>
+
+  <alias
+   match="sapi debug"
+   enabled="n"
+   omit_from_log="y"
+   omit_from_output="y"
+   sequence="100"
+   group="speech"
+   send_to="12"
+  ><send>
+     show_spoken_lines = not show_spoken_lines
+   </send>
+  </alias>
 </aliases>
 
 <triggers>
@@ -253,6 +266,7 @@ function OnPluginInstall ()
   talk:setVoice(talk:GetVoices():Item(current_voice_index)) -- luacom can't do `talk.Voice =`
   talk.Rate = GetVariable("talk_Rate") or talk.Rate
   speak = (GetVariable("speak") == "1")
+  show_spoken_lines = false
 
   EnableGroup("speech", true)
 
@@ -278,6 +292,9 @@ function say (what)
     return false -- failure
   end -- if not installed
 
+  if show_spoken_lines then
+    DoAfterNote(0.1, what)
+  end
   talk:Speak(what, SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFlagsAsync)
 
   return true -- OK

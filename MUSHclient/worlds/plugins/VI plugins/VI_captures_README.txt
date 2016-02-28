@@ -1,6 +1,6 @@
 Description:
 
-The VI_captures plugin constructs what we will call "captures". 
+The VI captures plugin constructs what we will call "captures". 
 Captures let you assign a keyword to some text, timestamp it, and store it sequentially with all other stored text of the same keyword.
 You can then call up a particular keyword and navigate through the stored messages for that keyword using built-in commands.
 You also get a command to copy the currently navigated message to your computer's clipboard.
@@ -43,7 +43,7 @@ mush capture copy next url
 mush capture copy prev url
 These two commands step through the detected URLs for the current navigated message and copy the current one to the operating system clipboard.
 
-mush capture browser copied url
+mush capture browse copied url
 This command takes the current URL from the previous commands and opens it in your operating system default web browser.
 
 mush capture delete line

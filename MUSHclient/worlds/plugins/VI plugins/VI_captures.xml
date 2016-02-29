@@ -298,13 +298,18 @@ function reindex_captures()
    OnPluginSaveState()
 end
 
-function add_capture_if_new(capture, prevent_reindex)
+function add_capture_if_new(capture, read_timestamps, history, max_capture_lines, autoecho, prevent_reindex)
    if not captures_flags[capture] then
       if capture == "all" then
          show("Cannot create capture with keyword \"all\".")
          return
       end
-      captures_flags[capture] = {history=true, max_capture_lines=MAX_CAPTURE_LINES, autoecho=true}
+      captures_flags[capture] = {
+         read_timestamps = ((read_timestamps ~= nil) and read_timestamps or true),
+         history = ((history ~= nil) and history or true), 
+         max_capture_lines = ((max_capture_lines ~= nil) and max_capture_lines or MAX_CAPTURE_LINES), 
+         autoecho = ((autoecho ~= nil) and autoecho or true)
+      }
       history_buffer[capture] = {}
       current_history_line[capture] = 1
       
@@ -332,13 +337,13 @@ function stamp_and_store(capture, msg)
    local log_text = ""
    
    msg = strip_colours(msg)    
-   timestamp = os.date(date_format)
+   timestamp = os.time()
    
    if (log_to_file == 1) then
       if (log_timestamps == 0) then
          log_text = msg
       else
-         log_text = timestamp..msg
+         log_text = os.date(date_format, timestamp)..msg
       end
       local filename = GetInfo(58):gsub("^.\\",GetInfo(56))..sanitize_filename(GetInfo(2)).."CaptureLog.txt"
       local f, err = io.open (filename, "a+") -- handle to capture log file
@@ -366,7 +371,7 @@ function stamp_and_store(capture, msg)
    if captures_flags[capture].autoecho then
       show(capture, msg)
       if #urls > 0 then
-         show("Found"..tostring(#urls).." URL"..(#urls == 1 and "" or "s"))
+         show("Found "..tostring(#urls).." URL"..(#urls == 1 and "" or "s"))
          latest_url_capture_index = #history_buffer[capture]
          latest_url_capture = capture
       end
@@ -580,14 +585,52 @@ function show_line()
       show("Capture for",current_capture,"is empty.")
       return
    end
+   local timestamp_msg = ""
+   local current_line = current_history_line[current_capture]
+   if captures_flags[current_capture].read_timestamps then
+      timestamp_msg = relative_time(history_buffer[current_capture][current_line].timestamp)
+   end
    if captures_flags[current_capture].history then
-      local current_line = current_history_line[current_capture]
-      show(current_capture,"line "..tostring(current_line).." of "..tostring(#(history_buffer[current_capture])), "at "..history_buffer[current_capture][current_line].timestamp, history_buffer[current_capture][current_line].msg)
+      show(current_capture,"line "..tostring(current_line).." of "..tostring(#(history_buffer[current_capture])), timestamp_msg.." "..history_buffer[current_capture][current_line].msg)
    else
-      show(current_capture,"received at "..history_buffer[current_capture][1].timestamp, history_buffer[current_capture][1].msg)
+      show(current_capture, timestamp_msg.." "..history_buffer[current_capture][1].msg)
    end
    url_index = nil
    last_url = nil
+end
+
+function relative_time(that_time)
+   local this_time = os.time()
+   local delta = this_time-that_time
+   if delta < 30 then
+      return "just now"
+   elseif delta < 60 then
+      return "seconds ago"
+   elseif delta < 120 then
+      return "a minute ago"
+   elseif delta < 1200 then
+      return "minutes ago"
+   elseif delta < 2400 then
+      return "a half-hour ago"
+   elseif delta < 4800 then
+      return "an hour ago"
+   elseif delta < 6000 then
+      return "an hour and a half ago"
+   elseif delta < 25200 then
+      return "a few hours ago"
+   elseif delta < 79200 then
+      return "hours ago"
+   elseif delta < 129600 then
+      return "a day ago"
+   elseif delta < 518400 then
+      return "days ago"
+   elseif delta < 907200 then
+      return "a week ago"
+   elseif delta < 2117000 then
+      return "weeks ago"
+   else
+      return "ages ago"
+   end
 end
 
 function delete_line()

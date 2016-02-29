@@ -330,21 +330,21 @@ end -- function OnPluginInstall
 function OnPluginScreendraw (t, log, line)
 
   if (t == 0 or t == 1) and speak then
-    say(line)
+    say(line, true)
   end -- if
 
 end -- function
 
 -- Speak from other scripts
 -- eg. CallPlugin ("463242566069ebfd1b379ec1", "say", "What to say")
-function say (what)
+function say (what, force_debug_off)
 
   -- check loaded
   if not talk then
     return false -- failure
   end -- if not installed
 
-  if show_spoken_lines then
+  if show_spoken_lines and not force_debug_off then
     DoAfterNote(0.1, what)
   end
   talk:Speak(what, SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFlagsAsync)

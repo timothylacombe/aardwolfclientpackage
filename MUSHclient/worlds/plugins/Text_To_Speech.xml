@@ -143,6 +143,17 @@ Scripts can also speak stuff by doing:
    group="speech"
   >
   </alias>
+
+  <alias
+   match="sapi halt"
+   enabled="n"
+   omit_from_log="y"
+   omit_from_output="y"
+   script="speak_skip_all"
+   sequence="100"
+   group="speech"
+  >
+  </alias>
   
   <alias
    match="^sapi say (.*)$"
@@ -215,6 +226,10 @@ end -- function speak_off
 function speak_skip (name, line, wildcards)
   talk:Skip("Sentence", 1)
 end -- function speak_skip
+
+function speak_skip_all (name, line, wildcards)
+  talk:Speak(' ', SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFPurgeBeforeSpeak)
+end
 
 function speak_faster (name, line, wildcards)
   talk.Rate = talk.Rate + 1
@@ -335,6 +350,13 @@ function OnPluginScreendraw (t, log, line)
 
 end -- function
 
+function NoteSilent(what)
+   local prev_speak = speak
+   speak = false
+   Note(what)
+   speak = prev_speak
+end
+
 -- Speak from other scripts
 -- eg. CallPlugin ("463242566069ebfd1b379ec1", "say", "What to say")
 function say (what, force_debug_off)
@@ -345,7 +367,8 @@ function say (what, force_debug_off)
   end -- if not installed
 
   if show_spoken_lines and not force_debug_off then
-    DoAfterNote(0.1, what)
+    local escaped_what = what:gsub("\\","\\\\"):gsub("\"","\\\"")
+    DoAfterSpecial(0.1, "CallPlugin (\"463242566069ebfd1b379ec1\", \"NoteSilent\", \""..escaped_what.."\")", 12)
   end
   talk:Speak(what, SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFlagsAsync)
 

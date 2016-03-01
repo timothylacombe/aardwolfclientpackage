@@ -15,17 +15,19 @@
    >
    
 <description trim="y">
-Text To Speech Plugin Commands:
+Text To Speech Plug-in Commands:
 
  sapi on             : turn on speaking
  sapi off            : turn off speaking of MUD output
  sapi skip           : skips one sentence in output stream
+ sapi halt           : clear the speech output queue
  sapi faster         : speeds speech up
  sapi slower         : slows speech down
  sapi rate [number]  : set speech rate to [number]
  sapi list voices    : list the available TTS voices
  sapi voice [number] : switch to the given TTS voice
  sapi test           : speak a test phrase
+ sapi punctuation    : toggle speaking of punctuation
  sapi say [text]     : speak the given text
 
 Scripts can also speak stuff by doing:
@@ -208,7 +210,8 @@ Scripts can also speak stuff by doing:
    send_to="12"
   ><send>
      speak_punc = not speak_punc
-     SetVariable("speak_punc", speak_punc and "1" or "0")
+     SetVariable("speak_punc", (speak_punc and "1" or "0"))
+     say("SAPI punctuation "..(speak_punc and "spoken" or "silent"))
    </send>
   </alias>
 </aliases>
@@ -353,7 +356,8 @@ function OnPluginInstall ()
   EnableGroup("speech", true)
 
   -- Method call
-  say("SAPI Plug-in installed and is ready.")
+  say("SAPI Plug-in installed and is ready")
+  say("SAPI punctuation "..(speak_punc and "spoken" or "silent"))
 end -- function OnPluginInstall
 
 -- here to draw the screen

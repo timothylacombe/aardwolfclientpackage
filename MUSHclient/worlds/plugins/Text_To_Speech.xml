@@ -197,6 +197,20 @@ Scripts can also speak stuff by doing:
      show_spoken_lines = not show_spoken_lines
    </send>
   </alias>
+  
+  <alias
+   match="sapi punctuation"
+   enabled="n"
+   omit_from_log="y"
+   omit_from_output="y"
+   sequence="100"
+   group="speech"
+   send_to="12"
+  ><send>
+     speak_punc = not speak_punc
+     SetVariable("speak_punc", speak_punc and "1" or "0")
+   </send>
+  </alias>
 </aliases>
 
 <triggers>
@@ -212,14 +226,14 @@ Scripts can also speak stuff by doing:
 function speak_on (name, line, wildcards)
   speak = true
   SetVariable("speak", speak and "1" or "0")
-  talk:Speak("Sapi auto speak now activated.", SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFlagsAsync)
+  say("SAPI auto speak now activated.")
 end -- function speak_on
 
 -- turn off speaking
 function speak_off (name, line, wildcards)
   speak = false
   SetVariable("speak", speak and "1" or "0")
-  talk:Speak("Sapi auto speak now deactivated.", SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFlagsAsync)
+  say("SAPI auto speak now deactivated.")
 end -- function speak_off
 
 -- skip a sentence
@@ -249,7 +263,7 @@ function speak_rate (name, line, wildcards)
     SetVariable("talk_Rate", talk.Rate)
     speak_test()
   else
-    talk:Speak("Invalid Sapi rate \""..wildcards[1].."\"")
+    say("Invalid SAPI rate \""..wildcards[1].."\"")
   end
 end
 
@@ -333,6 +347,7 @@ function OnPluginInstall ()
   talk:setVoice(voice) -- luacom can't do `talk.Voice =`
   talk.Rate = GetVariable("talk_Rate") or talk.Rate
   speak = (GetVariable("speak") == "1")
+  speak_punc = (GetVariable("speak_punc") == "1")
   show_spoken_lines = false
 
   EnableGroup("speech", true)
@@ -370,7 +385,7 @@ function say (what, force_debug_off)
     local escaped_what = what:gsub("\\","\\\\"):gsub("\"","\\\"")
     DoAfterSpecial(0.1, "CallPlugin (\"463242566069ebfd1b379ec1\", \"NoteSilent\", \""..escaped_what.."\")", 12)
   end
-  talk:Speak(what, SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFlagsAsync)
+  talk:Speak(what, SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFlagsAsync + (speak_punc and SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFNLPSpeakPunc or 0))
 
   return true -- OK
 end -- function say

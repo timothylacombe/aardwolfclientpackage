@@ -17,10 +17,10 @@
 <description trim="y">
 Text To Speech Plug-in Commands:
 
- sapi on             : turn on speaking
- sapi off            : turn off speaking of MUD output
+ sapi on             : turn on automatic speaking of MUD output
+ sapi off            : turn off automatic speaking of MUD output
  sapi skip           : skips one sentence in output stream
- sapi halt           : clear the speech output queue
+ sapi clear          : clear the speech output queue
  sapi faster         : speeds speech up
  sapi slower         : slows speech down
  sapi rate [number]  : set speech rate to [number]
@@ -147,7 +147,7 @@ Scripts can also speak stuff by doing:
   </alias>
 
   <alias
-   match="sapi halt"
+   match="sapi clear"
    enabled="n"
    omit_from_log="y"
    omit_from_output="y"
@@ -236,6 +236,7 @@ end -- function speak_on
 function speak_off (name, line, wildcards)
   speak = false
   SetVariable("speak", speak and "1" or "0")
+  speak_skip_all()
   say("SAPI auto speak now deactivated.")
 end -- function speak_off
 
@@ -349,7 +350,7 @@ function OnPluginInstall ()
 
   talk:setVoice(voice) -- luacom can't do `talk.Voice =`
   talk.Rate = GetVariable("talk_Rate") or talk.Rate
-  speak = (GetVariable("speak") == "1")
+  speak = ((GetVariable("speak") or "1") == "1")
   speak_punc = (GetVariable("speak_punc") == "1")
   show_spoken_lines = false
 

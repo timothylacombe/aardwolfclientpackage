@@ -5,7 +5,7 @@
 <muclient>
 <plugin
    name="Text_To_Speech"
-   author="Avi Kelman"
+   author="Avi Kelman (Fiendish)"
    id="463242566069ebfd1b379ec1"
    language="Lua"
    purpose="Speaks incoming text using SAPI."

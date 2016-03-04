@@ -18,18 +18,18 @@
 <description trim="y">
 Text To Speech Plug-in Commands:
 
- sapi on                   : turn on automatic speaking of MUD output
- sapi off                  : turn off automatic speaking of MUD output
- sapi skip                 : skips one sentence in output stream
- sapi clear                : clear the speech output queue
- sapi faster               : speeds speech up
- sapi slower               : slows speech down
- sapi rate [number]        : set speech rate to [number]
- sapi list voices          : list the available TTS voices
- sapi voice [number]       : switch to the given TTS voice number
- sapi test                 : speak a test phrase
- sapi punctuation [number] : set punctuation filtering level to [number]
- sapi say [text]           : speak the given text
+ sapi on                   : turn on automatic speaking of MUD output.
+ sapi off                  : turn off automatic speaking of MUD output.
+ sapi skip                 : skips one sentence in output stream.
+ sapi clear                : clear the speech output queue.
+ sapi faster               : speeds speech up.
+ sapi slower               : slows speech down.
+ sapi rate [number]        : set speech rate to [number].
+ sapi list voices          : list the available TTS voices.
+ sapi voice [number]       : switch to the given TTS voice number.
+ sapi test                 : speak a test phrase.
+ sapi punctuation [number] : set punctuation filtering level to [number].
+ sapi say [text]           : speak the given text.
 
 Scripts can also speak stuff by doing:
 
@@ -174,7 +174,8 @@ Scripts can also speak stuff by doing:
   </alias>
     
   <alias
-   match="sapi help"
+   match="^sapi help( printed)?$"
+   regexp="y"
    enabled="n"
    omit_from_log="y"
    omit_from_output="y"
@@ -182,9 +183,12 @@ Scripts can also speak stuff by doing:
    group="speech"
    send_to="12"
   ><send>
-     Note()
-     Note(GetPluginInfo(GetPluginID(), 3))
-     Note()
+     if "%1" == "" then
+       say("This help is being spoken but not printed to the screen. To print it to the screen, use: sapi help printed.")
+       say(GetPluginInfo(GetPluginID(), 3), true)
+     else
+       NoteSilent(GetPluginInfo(GetPluginID(), 3))
+     end
    </send>
   </alias>
 

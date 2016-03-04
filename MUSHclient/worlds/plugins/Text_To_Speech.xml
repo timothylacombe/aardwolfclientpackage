@@ -18,18 +18,18 @@
 <description trim="y">
 Text To Speech Plug-in Commands:
 
- sapi on             : turn on automatic speaking of MUD output
- sapi off            : turn off automatic speaking of MUD output
- sapi skip           : skips one sentence in output stream
- sapi clear          : clear the speech output queue
- sapi faster         : speeds speech up
- sapi slower         : slows speech down
- sapi rate [number]  : set speech rate to [number]
- sapi list voices    : list the available TTS voices
- sapi voice [number] : switch to the given TTS voice
- sapi test           : speak a test phrase
- sapi punctuation    : toggle speaking of punctuation
- sapi say [text]     : speak the given text
+ sapi on                   : turn on automatic speaking of MUD output
+ sapi off                  : turn off automatic speaking of MUD output
+ sapi skip                 : skips one sentence in output stream
+ sapi clear                : clear the speech output queue
+ sapi faster               : speeds speech up
+ sapi slower               : slows speech down
+ sapi rate [number]        : set speech rate to [number]
+ sapi list voices          : list the available TTS voices
+ sapi voice [number]       : switch to the given TTS voice number
+ sapi test                 : speak a test phrase
+ sapi punctuation [number] : set punctuation filtering level to [number]
+ sapi say [text]           : speak the given text
 
 Scripts can also speak stuff by doing:
 
@@ -351,7 +351,7 @@ function speak_choose_voice (name, line, wildcards)
 end
 
 function speak_test (name, line, wildcards)
-  say("SAPI speech currently set to voice number "..tostring(current_voice_index+1)..", "..talk.Voice:GetDescription()..", speaking at rate " .. tostring(talk.Rate))
+  say("SAPI speech is set to voice "..tostring(current_voice_index+1)..", "..talk.Voice:GetDescription()..", speaking at rate " .. tostring(talk.Rate))
 end
 
 function list_voices (name, line, wildcards)

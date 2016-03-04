@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
 <!DOCTYPE muclient>
-
+<!-- Based on work by Nick Gammon based on work by Tyler Spivey -->
+<!-- See: http://www.gammon.com.au/forum/bbshowpost.php?bbsubject_id=7767 -->
 <muclient>
 <plugin
    name="Text_To_Speech"
-   author="Nick Gammon"
+   author="Avi Kelman"
    id="463242566069ebfd1b379ec1"
    language="Lua"
    purpose="Speaks incoming text using SAPI."
    date_written="2010-09-01"
    requires="4.60"
-   version="1.1"
+   version="2.0"
    save_state="y"
    >
    
@@ -36,7 +37,6 @@ Scripts can also speak stuff by doing:
 </description>
 </plugin>
 
-<!--  Triggers  -->
 <aliases>
   <alias
    match="sapi on"
@@ -124,8 +124,9 @@ Scripts can also speak stuff by doing:
   </alias>
   
   <alias
-   match="sapi rate *"
+   match="^sapi rate( .+)?$"
    enabled="n"
+   regexp="y"
    omit_from_command_history="y"
    omit_from_log="y"
    omit_from_output="y"
@@ -201,19 +202,15 @@ Scripts can also speak stuff by doing:
   </alias>
   
   <alias
-   match="sapi punctuation"
+   match="sapi punctuation( .+)?"
+   regexp="y"
    enabled="n"
    omit_from_log="y"
    omit_from_output="y"
    sequence="100"
    group="speech"
-   send_to="12"
-  ><send>
-     speak_punc = not speak_punc
-     SetVariable("speak_punc", (speak_punc and "1" or "0"))
-     say("SAPI punctuation "..(speak_punc and "spoken" or "silent"))
-   </send>
-  </alias>
+   script="speak_punctuation_level"
+  ></alias>
 </aliases>
 
 <triggers>
@@ -221,9 +218,42 @@ Scripts can also speak stuff by doing:
 
 <!--  Script  -->
 
-
 <script>
 <![CDATA[
+
+local punc_descs = {
+  "Say all punctuation.",
+  "Say only non-standard punctuation.",
+  "Extra filtering to mask symbols and other garbage."
+}
+
+function current_punctuation_level()
+  return "SAPI punctuation level is currently "..tostring(punctuation_level)..". "..punc_descs[punctuation_level]
+end
+
+function speak_punctuation_level(name, line, wildcards)
+  local function list_options()
+    say("Punctuation level options are:")
+    for i,v in ipairs(punc_descs) do say("Level "..tostring(i)..": "..v) end
+    say("Level "..tostring(#punc_descs).." is recommended.")
+  end
+  
+  local arg = Trim(wildcards[1])
+  if arg == "" then
+    say(current_punctuation_level())
+    list_options()
+    return
+  end
+  arg = tonumber(arg)
+  if (arg == nil) or (punc_descs[arg] == nil) then
+    say("SAPI punctuation level must be an index number between 1 and 3.")
+    list_options()
+    return
+  end
+  punctuation_level = arg
+  SetVariable("punctuation_level", tostring(punctuation_level))
+  say("SAPI punctuation level set to "..tostring(punctuation_level)..". "..punc_descs[punctuation_level])
+end
 
 -- turn on speaking
 function speak_on (name, line, wildcards)
@@ -262,12 +292,39 @@ function speak_slower (name, line, wildcards)
 end
 
 function speak_rate (name, line, wildcards)
-  if tonumber(wildcards[1]) then
+  local input = Trim(wildcards[1])
+  if input == "" then
+    say("SAPI rate currently set to "..talk.Rate)
+    return
+  end
+  if tonumber(input) then
     talk.Rate = tonumber(wildcards[1])
     SetVariable("talk_Rate", talk.Rate)
     speak_test()
   else
     say("Invalid SAPI rate \""..wildcards[1].."\"")
+  end
+end
+
+western_happy_faces = "[8:]%-?[D%)%]]" -- arbitrary heuristics
+western_sad_faces = "[8:;]%-?[%(%[]" -- arbitrary heuristics
+another_sad_face = "%-_%-" -- arbitrary heuristics
+another_happy_face = "%^_%^" -- arbitrary heuristics
+western_wink_faces = ";%-?[D%)%]]" -- arbitrary heuristics
+western_tongue_faces = "[8:;]%-?[pP9b]" -- arbitrary heuristics
+remove_two_or_more_of_these = "[%-%+%^#$~><*`_]" -- arbitrary heuristics
+remove_three_or_more_of_these = "[%p\\/|_%-%(%)%[]{}%%%+%^#%$~><*`_]" -- arbitrary heuristics
+silent_if_only_these = "[%p%s]+" -- arbitrary heuristics
+two_or_more_pattern = remove_two_or_more_of_these:rep(2).."+" -- arbitrary heuristics
+three_or_more_pattern = remove_three_or_more_of_these:rep(3).."+" -- arbitrary heuristics
+pad_left_braces = "([%[%(%{])" -- arbitrary heuristics
+pad_right_braces = "([%]%}%)])" -- arbitrary heuristics
+function filter_more_punctuation(msg) -- uses arbitrary heuristics
+  msg = msg:gsub(western_happy_faces, ", smiley. "):gsub(western_sad_faces, ", sad-face. "):gsub(western_wink_faces, ", winks. "):gsub(western_tongue_faces, ", sticks-tongue-out. "):gsub(another_sad_face, ", sad-face. "):gsub(another_happy_face, ", smiley. "):gsub(three_or_more_pattern, " "):gsub(two_or_more_pattern, " "):gsub("|", " "):gsub(pad_left_braces, " %1"):gsub(pad_right_braces, "%1 ")
+  if msg:gsub(silent_if_only_these, "") == "" then
+    return ""
+  else
+    return msg
   end
 end
 
@@ -351,14 +408,16 @@ function OnPluginInstall ()
   talk:setVoice(voice) -- luacom can't do `talk.Voice =`
   talk.Rate = GetVariable("talk_Rate") or talk.Rate
   speak = ((GetVariable("speak") or "1") == "1")
-  speak_punc = (GetVariable("speak_punc") == "1")
+  punctuation_level = tonumber(GetVariable("punctuation_level"))
+  if punc_descs[punctuation_level] == nil then
+    punctuation_level = 3
+  end
   show_spoken_lines = false
-
   EnableGroup("speech", true)
 
   -- Method call
   say("SAPI Plug-in installed and is ready")
-  say("SAPI punctuation "..(speak_punc and "spoken" or "silent"))
+  say(current_punctuation_level())
 end -- function OnPluginInstall
 
 -- here to draw the screen
@@ -388,9 +447,19 @@ function say (what, force_debug_off)
 
   if show_spoken_lines and not force_debug_off then
     local escaped_what = what:gsub("\\","\\\\"):gsub("\"","\\\"")
+    -- this uses DoAfterSpecial instead of Note directly, because of http://www.gammon.com.au/forum/?id=12915&reply=38#reply38
     DoAfterSpecial(0.1, "CallPlugin (\"463242566069ebfd1b379ec1\", \"NoteSilent\", \""..escaped_what.."\")", 12)
   end
-  talk:Speak(what, SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFlagsAsync + (speak_punc and SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFNLPSpeakPunc or 0))
+  if punctuation_level == 1 then
+     talk:Speak(what, SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFlagsAsync + SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFNLPSpeakPunc)
+  elseif punctuation_level == 2 then
+     talk:Speak(what, SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFlagsAsync)
+  else
+     local cleaned_speech = filter_more_punctuation(what)
+     if cleaned_speech ~= "" then
+        talk:Speak(cleaned_speech, SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFlagsAsync)
+     end
+  end
 
   return true -- OK
 end -- function say

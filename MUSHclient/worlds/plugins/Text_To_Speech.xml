@@ -310,22 +310,36 @@ function speak_rate (name, line, wildcards)
   end
 end
 
-times="(%d)%*(%d)" -- arbitrary heuristics
-western_happy_faces = "[8:]%-?[D%)%]]" -- arbitrary heuristics
-western_sad_faces = "[8:;]%-?[%(%[]" -- arbitrary heuristics
-another_sad_face = "%-_%-" -- arbitrary heuristics
-another_happy_face = "%^_%^" -- arbitrary heuristics
-western_wink_faces = ";%-?[D%)%]]" -- arbitrary heuristics
-western_tongue_faces = "[8:;]%-?[pP9b]" -- arbitrary heuristics
-remove_two_or_more_of_these = "[%-%+%^#$~><*`_]" -- arbitrary heuristics
-remove_three_or_more_of_these = "[%p\\/|_%-%(%)%[]{}%%%+%^#%$~><*`_]" -- arbitrary heuristics
-silent_if_only_these = "[%p%s]+" -- arbitrary heuristics
-two_or_more_pattern = remove_two_or_more_of_these:rep(2).."+" -- arbitrary heuristics
-three_or_more_pattern = remove_three_or_more_of_these:rep(3).."+" -- arbitrary heuristics
-pad_left_braces = "([%[%(%{])" -- arbitrary heuristics
-pad_right_braces = "([%]%}%)])" -- arbitrary heuristics
+replacements = { -- arbitrary text filtering heuristics
+   {"[8:]%-?[D%)%]]", ", smiley. "}, -- western emoticons
+   {"[8:;]%-?[%(%[]", ", sad-face. "}, -- western emoticons
+   {";%-?[D%)%]]", ", winks. "}, -- western emoticons
+   {"[8:;]%-?[pP9b]", " sticks-tongue-out. "}, -- western emoticons
+   {"%^_%^", ", smiley. "}, -- another emoticon
+   {"%-_%-", ", sad-face. "}, -- another emoticon
+   {string.rep("[%p\\/|_%-%(%)%[]{}%%%+%^#%$~><*`_]", 3).."+", " "}, -- symbol garbage
+   {string.rep("[%-%+%^#$~><*`_]", 2).."+", " "}, -- symbol garbage
+   {"|", " "}, -- symbol garbage
+   -- fix contextual pronunciation
+   {"([%[%(%{])", " %1"}, -- "()()"
+   {"([%]%}%)])", "%1 "}, -- "()()"
+   {"(%d)%*(%d)", "%1 times %2"}, -- "*"
+   {"([%d,]+%.?[%d]*)%/(%a)", "%1 per %2"}, -- "#/a"
+   {"([^%s%p%d])(%u)", "%1 %2 "}, -- capitals that don't start words
+   {"([^%a])db", "%1, D B, "}, -- stop saying decibels
+   {"[pP]file", "P file"}, -- aardwolf channels
+   {"[gG]clan", "G clan"}, -- aardwolf channels
+   {"[gG]tell", "G tell"}, -- aardwolf channels
+   {"[fF]talk", "F talk"}, -- aardwolf channels
+   {"[gG]clan", "G clan"}, -- aardwolf channels
+   {"[aA]ylor", "aylor "} -- Aylorian->ALIEN??? hahahaha
+}
+silent_if_only_these = "[%p%s]+"
+
 function filter_more_punctuation(msg) -- uses arbitrary heuristics
-  msg = msg:gsub(western_happy_faces, ", smiley. "):gsub(western_sad_faces, ", sad-face. "):gsub(western_wink_faces, ", winks. "):gsub(western_tongue_faces, ", sticks-tongue-out. "):gsub(another_sad_face, ", sad-face. "):gsub(another_happy_face, ", smiley. "):gsub(three_or_more_pattern, " "):gsub(two_or_more_pattern, " "):gsub("|", " "):gsub(pad_left_braces, " %1"):gsub(pad_right_braces, "%1 "):gsub(times, "%1 times %2")
+  for i,sub in ipairs(replacements) do
+     msg = msg:gsub(sub[1], sub[2])
+  end
   if msg:gsub(silent_if_only_these, "") == "" then
     return ""
   else

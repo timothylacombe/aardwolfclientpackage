@@ -21,9 +21,19 @@ Capture buffers with keyboard navigation
 </plugin>
 
 <aliases>
+
+<alias
+   script="dump_capture"
+   match="^mc dump( .*)?$"
+   enabled="y"
+   regexp="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
 <alias
    script="switch_to_capture_by_name"
-   match="mush capture switch *"
+   match="mc switch *"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -31,7 +41,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="next_capture"
-   match="mush capture next"
+   match="mc next"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -39,7 +49,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="prev_capture"
-   match="mush capture prev"
+   match="mc prev"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -47,7 +57,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="list_captures"
-   match="mush capture list*"
+   match="mc list*"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -55,7 +65,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="next_line"
-   match="mush capture next line"
+   match="mc next line"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -63,7 +73,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="prev_line"
-   match="mush capture prev line"
+   match="mc prev line"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -71,7 +81,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="last_line"
-   match="mush capture last line"
+   match="mc last line"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -79,7 +89,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="first_line"
-   match="mush capture first line"
+   match="mc first line"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -87,7 +97,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="show_line"
-   match="mush capture show"
+   match="mc show"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -95,7 +105,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="latest_url"
-   match="mush capture latest url"
+   match="mc latest url"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -103,7 +113,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="copy_line"
-   match="mush capture copy"
+   match="mc copy"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -111,7 +121,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="copy_next_url"
-   match="mush capture copy next url"
+   match="mc copy next url"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -119,7 +129,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="copy_prev_url"
-   match="mush capture copy prev url"
+   match="mc copy prev url"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -127,7 +137,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="browser_copied_url"
-   match="mush capture browse copied url"
+   match="mc browse copied url"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -135,7 +145,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="delete_line"
-   match="mush capture delete line"
+   match="mc delete line"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -143,7 +153,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="clear_capture"
-   match="mush capture clear"
+   match="mc clear"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -151,7 +161,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="remove_capture"
-   match="mush capture remove*"
+   match="mc remove*"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -159,7 +169,7 @@ Capture buffers with keyboard navigation
 
 <alias
    script="loud_capture"
-   match="mush capture loud*"
+   match="mc loud*"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -167,14 +177,14 @@ Capture buffers with keyboard navigation
 
 <alias
    script="quiet_capture"
-   match="mush capture quiet*"
+   match="mc quiet*"
    enabled="y"
    sequence="100"
    ignore_case="y"
 ></alias>
 
 <alias
-   match="mush capture help"
+   match="mc help"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -182,30 +192,30 @@ Capture buffers with keyboard navigation
 ><send>
 stamp_and_store("help","Detailed help for the VI captures plug-in is included in a text file called VI_captures_README.txt in the same location as the plug-in.")
 stamp_and_store("help","Available commands are:")
-stamp_and_store("help","mush capture switch")
-stamp_and_store("help","mush capture next")
-stamp_and_store("help","mush capture prev")
-stamp_and_store("help","mush capture list")
-stamp_and_store("help","mush capture next line")
-stamp_and_store("help","mush capture prev line")
-stamp_and_store("help","mush capture first line")
-stamp_and_store("help","mush capture last line")
-stamp_and_store("help","mush capture show")
-stamp_and_store("help","mush capture copy")
-stamp_and_store("help","mush capture copy next url")
-stamp_and_store("help","mush capture copy prev url")
-stamp_and_store("help","mush capture browse copied url")
-stamp_and_store("help","mush capture delete line")
-stamp_and_store("help","mush capture clear")
-stamp_and_store("help","mush capture remove")
-stamp_and_store("help","mush capture loud")
-stamp_and_store("help","mush capture quiet")
+stamp_and_store("help","mc switch")
+stamp_and_store("help","mc next")
+stamp_and_store("help","mc prev")
+stamp_and_store("help","mc list")
+stamp_and_store("help","mc next line")
+stamp_and_store("help","mc prev line")
+stamp_and_store("help","mc first line")
+stamp_and_store("help","mc last line")
+stamp_and_store("help","mc show")
+stamp_and_store("help","mc copy")
+stamp_and_store("help","mc copy next url")
+stamp_and_store("help","mc copy prev url")
+stamp_and_store("help","mc browse copied url")
+stamp_and_store("help","mc delete line")
+stamp_and_store("help","mc clear")
+stamp_and_store("help","mc remove")
+stamp_and_store("help","mc loud")
+stamp_and_store("help","mc quiet")
 stamp_and_store("help","This information has been stored in the [help] capture.")
 </send>
 </alias>
 
 <alias
-   match="mush capture destroy all"
+   match="mc destroy all"
    enabled="y"
    sequence="100"
    ignore_case="y"
@@ -248,6 +258,12 @@ for k,v in pairs(captures_flags) do
    current_history_line[k] = 1
 end
 sorted_capture_indices = {}
+
+require "checkplugin"
+function OnPluginListChanged()
+   -- check we have necessary plugins
+   do_plugin_check_now("463242566069ebfd1b379ec1", "Text_To_Speech")
+end
    
 require "serialize"
 function OnPluginSaveState()
@@ -304,12 +320,32 @@ function add_capture_if_new(capture, read_timestamps, history, max_capture_lines
          show("Cannot create capture with keyword \"all\".")
          return
       end
-      captures_flags[capture] = {
-         read_timestamps = ((read_timestamps ~= nil) and read_timestamps or true),
-         history = ((history ~= nil) and history or true), 
-         max_capture_lines = ((max_capture_lines ~= nil) and max_capture_lines or MAX_CAPTURE_LINES), 
-         autoecho = ((autoecho ~= nil) and autoecho or true)
-      }
+      captures_flags[capture] = {}
+      
+      if read_timestamps ~= nil then
+         captures_flags[capture].read_timestamps = read_timestamps
+      else
+         captures_flags[capture].read_timestamps = true
+      end
+      
+      if history ~= nil then
+         captures_flags[capture].history = history
+      else
+         captures_flags[capture].history = true
+      end
+      
+      if max_capture_lines ~= nil then
+         captures_flags[capture].max_capture_lines = max_capture_lines
+      else
+         captures_flags[capture].max_capture_lines = MAX_CAPTURE_LINES
+      end
+      
+      if autoecho ~= nil then
+         captures_flags[capture].autoecho = autoecho
+      else
+         captures_flags[capture].autoecho = true
+      end
+         
       history_buffer[capture] = {}
       current_history_line[capture] = 1
       
@@ -339,6 +375,7 @@ function stamp_and_store(capture, msg)
    msg = strip_colours(msg)    
    timestamp = os.time()
    
+--[[
    if (log_to_file == 1) then
       if (log_timestamps == 0) then
          log_text = msg
@@ -356,6 +393,7 @@ function stamp_and_store(capture, msg)
          show("Fix the problem or disable Logging to File in the "..GetPluginInfo(1).." plugin.")
       end
    end
+--]]
 
    local urls = findURLs(msg)
    -- store the line
@@ -407,11 +445,14 @@ function list_captures(name, line, wildcards)
    show("")
 end
 
-function switch_to_capture(capture)
-   local cflags = captures_flags[capture]
+function switch_to_capture(capture, keep_quiet)
+   current_capture_index = get_capture_index(capture)
    current_capture = capture
+   local cflags = captures_flags[capture]
    local nlines = #(history_buffer[capture])
-   show("Switched to capture for "..capture,(cflags.history and (tostring(nlines).." line"..(nlines==1 and "" or "s").." stored") or ""),"Flags are", cflags.autoecho and "loud" or "quiet", cflags.history and "history" or "no history")
+   if not keep_quiet then
+      show("Switched to capture for "..capture,(cflags.history and (tostring(nlines).." line"..(nlines==1 and "" or "s").." stored") or ""),"Flags are", cflags.autoecho and "loud" or "quiet", cflags.history and "history" or "no history")
+   end
    OnPluginSaveState()
 end
 
@@ -421,32 +462,35 @@ function switch_to_capture_by_name(name, line, wildcards)
       show(capture,"is not a capture.")
       return
    end
-   current_capture_index = get_capture_index(capture)
    switch_to_capture(capture)
 end
 
-function next_capture()
+function next_capture(keep_quiet)
    if #sorted_capture_indices <= 1 then
-      show("There are no other captures.")
+      if not keep_quiet then
+         show("There are no other captures.")
+      end
       return
    end
-   current_capture_index = current_capture_index+1
-   if current_capture_index > #sorted_capture_indices then
-      current_capture_index = 1
+   local next_capture_index = current_capture_index+1
+   if next_capture_index > #sorted_capture_indices then
+      next_capture_index = 1
    end
-   switch_to_capture(sorted_capture_indices[current_capture_index])
+   switch_to_capture(sorted_capture_indices[next_capture_index], keep_quiet)
 end
 
-function prev_capture()
+function prev_capture(keep_quiet)
    if #sorted_capture_indices <= 1 then
-      show("There are no other captures.")
+      if not keep_quiet then
+         show("There are no other captures.")
+      end
       return
    end
-   current_capture_index = current_capture_index-1
-   if current_capture_index < 1 then
-      current_capture_index = #sorted_capture_indices
+   local next_capture_index = current_capture_index-1
+   if next_capture_index < 1 then
+      next_capture_index = #sorted_capture_indices
    end
-   switch_to_capture(sorted_capture_indices[current_capture_index])
+   switch_to_capture(sorted_capture_indices[next_capture_index], keep_quiet)
 end
 
 function next_line()
@@ -591,7 +635,7 @@ function show_line()
       timestamp_msg = relative_time(history_buffer[current_capture][current_line].timestamp)
    end
    if captures_flags[current_capture].history then
-      show(current_capture,"line "..tostring(current_line).." of "..tostring(#(history_buffer[current_capture])), timestamp_msg.." "..history_buffer[current_capture][current_line].msg)
+      show(current_capture, tostring(current_line).." of "..tostring(#(history_buffer[current_capture])), timestamp_msg.." "..history_buffer[current_capture][current_line].msg)
    else
       show(current_capture, timestamp_msg.." "..history_buffer[current_capture][1].msg)
    end
@@ -648,14 +692,18 @@ function delete_line()
    show_line()
 end
 
-function clear_capture()
+function clear_capture(keep_quiet)
    if not current_capture then
-      show("No current capture selected.")
+      if not keep_quiet then
+         show("No current capture selected.")
+      end
       return
    end
    history_buffer[current_capture] = {}
    current_history_line[current_capture] = 1
-   show("Capture for",current_capture,"is cleared.")
+   if not keep_quiet then
+      show("Capture for",current_capture,"is cleared.")
+   end
 end
 
 function echo_off(capture)
@@ -712,15 +760,7 @@ function loud_capture(name, line, wildcards)
    end
 end
 
-function remove_capture(name, line, wildcards)
-   if not current_capture then
-      show("There are no captures right now.")
-      return
-   end
-   local capture = Trim(wildcards[1])
-   if capture == "" then 
-      capture = current_capture 
-   end
+function remove_capture_internal(capture, keep_quiet)
    if capture == "all" then
       -- TODO: verify here
       history_buffer = {}
@@ -730,19 +770,41 @@ function remove_capture(name, line, wildcards)
       sorted_capture_indices = {}
       current_capture_index = nil
       OnPluginSaveState()
-      show("All captures removed.")
+      if not keep_quiet then
+         show("All captures removed.")
+      end
    elseif captures_flags[capture] then
       if capture == current_capture then
-         next_capture()
+         next_capture(keep_quiet)
       end
       history_buffer[capture] = nil
       current_history_line[capture] = nil
       captures_flags[capture] = nil
       reindex_captures() -- saves
-      show("Capture for",capture,"is removed.")
+      if not keep_quiet then
+         show("Capture for",capture,"is removed.")
+      end
    else
-      show(capture,"is not a capture.")
+      if not keep_quiet then
+         show(capture,"is not a capture.")
+      end
    end
+end
+
+function remove_capture(name, line, wildcards)
+   if not current_capture then
+      show("There are no captures right now.")
+      return
+   end
+   local capture = Trim(wildcards[1])
+   if capture == "" then 
+      capture = current_capture 
+   end
+   remove_capture_internal(capture)
+end
+
+function dump_capture(name, line, wildcards)
+   --todo
 end
 
 function OnPluginInstall()

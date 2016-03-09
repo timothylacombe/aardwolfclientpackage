@@ -368,12 +368,14 @@ function sanitize_filename(str)
    return Trim(str)
 end
 
-function stamp_and_store(capture, msg)
+function stamp_and_store(capture, msg, timestamp)
    local text = ""
    local log_text = ""
    
-   msg = strip_colours(msg)    
-   timestamp = os.time()
+   msg = strip_colours(msg)
+   if tonumber(timestamp) == nil then
+      timestamp = os.time()
+   end
    
 --[[
    if (log_to_file == 1) then

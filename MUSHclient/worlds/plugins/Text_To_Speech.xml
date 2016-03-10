@@ -311,13 +311,16 @@ function speak_rate (name, line, wildcards)
 end
 
 replacements = { -- arbitrary text filtering heuristics
-   {"[8:]%-?[D%)%]]", ", smiley. "}, -- western emoticons
-   {"[8:;]%-?[%(%[]", ", sad-face. "}, -- western emoticons
+   {"[:]%-?[D%)%]]", ", smiley. "}, -- western emoticons
+   {"[:;]%-?[%(%[]", ", sad-face. "}, -- western emoticons
    {";%-?[D%)%]]", ", winks. "}, -- western emoticons
-   {"[8:;]%-?[pP9b]", " sticks-tongue-out. "}, -- western emoticons
+   {"[:;]%-?[pP9b]", " sticks-tongue-out. "}, -- western emoticons
+   {"8%-[D%)%]]", ", smiley. "}, -- 8- western emoticons
+   {"8%-[%(%[]", ", sad-face. "}, -- 8- western emoticons
+   {"8%-[pP9b]]", ", sticks-tongue-out. "}, -- 8- western emoticons
    {"%^_%^", ", smiley. "}, -- another emoticon
    {"%-_%-", ", sad-face. "}, -- another emoticon
-   {string.rep("[%p\\/|_%-%(%)%[]{}%%%+%^#%$~><%*`_]", 3).."+", " "}, -- symbol garbage
+   {string.rep("[%p\\/|_%-%(%)%[%]%{%}%%%+%^%#%$~><%*`_]", 3).."+", " "}, -- symbol garbage
    {string.rep("[%-%+%^=#$~><%*`_:]", 2).."+", " "}, -- symbol garbage
    {"|", " "}, -- symbol garbage
    -- fix contextual pronunciation
@@ -325,17 +328,29 @@ replacements = { -- arbitrary text filtering heuristics
    {"([%]%}%)])", "%1 "}, -- "()()"
    {"(%d)%*(%d)", "%1 times %2"}, -- "*"
    {"([%d,]+%.?[%d]*)%/(%a)", "%1 per %2"}, -- "#/a"
-   {"([^%a])[dD][bB]", "%1, D B, "}, -- stop saying decibels
-   {"afk", "AFK"}, -- spell it
-   {"omg", "OMG"}, -- spell it
-   {"pwned", "p'owned"}, -- say it
+   {"%f[%a][dD][bB]", ", D B, "}, -- stop saying decibels
+   {"%f[%a]afk%f[%A]", " AFK "}, -- spell it
+   {"%f[%a]omg%f[%A]", " OMG "}, -- spell it
+   {"%f[%a][vV][iI]%f[%A]", " V I "}, -- spell it
+   {"%f[%a]pwned", " p'owned "}, -- say it
+   {"thx", " thanks "}, -- say it
    {"%f[%a]%u+%f[%A]", function(a) if a:sub(2):find("[AEIOUY]") then return string.lower(a) else return a end end}, -- say GLACIATES and ROFL, but still spell AFK and OMG
-   {"[pP]file", "P file"}, -- aardwolf channels
-   {"[gG]clan", "G clan"}, -- aardwolf channels
-   {"[gG]tell", "G tell"}, -- aardwolf channels
-   {"[fF]talk", "F talk"}, -- aardwolf channels
-   {"[gG]clan", "G clan"}, -- aardwolf channels
-   {"[aA]ylor", "aylor "} -- Aylorian->ALIEN??? hahahaha what
+   -- aardwolf words
+   {"%f[%a][pP]file", " P file"},
+   {"%f[%a][gG]clan", " G clan"},
+   {"%f[%a][gG]tell", " G tell"},
+   {"%f[%a][fF]talk", " F talk"},
+   {"%f[%a][gG]clan", " G clan"},
+   {"%f[%a][gG]social", " G social"},
+   {"%f[%a][rR]auction", " R auction"},
+   {"%f[%a][gG]ametalk", " game-talk"},
+   {"%f[%a][nN]obletalk", " noble-talk"}, 
+   {"%f[%a][tT]iertalk", " tier-talk"},
+   {"%f[%a][rR]acetalk", " race-talk"},
+   {"%f[%a][cC]lantalk", " clan-talk"},
+   {"%f[%a][pP]okerinfo", " poker-info"},
+   {"%f[%a][mM]afiainfo", " mafia-info"},
+   {"%f[%a][aA]ylor", " aylor "} -- Aylorian->ALIEN??? hahahaha what
 }
 silent_if_only_these = "[%p%s]+"
 

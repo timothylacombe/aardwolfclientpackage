@@ -146,7 +146,7 @@ function OnPluginSaveState()
 end
 
 function untagged_info(name, line, wildcards, styles)
-   CallPlugin("dd10517422bc35b5131a3aa0", "stamp_and_store", name, line)
+   CallPlugin("dd10517422bc35b5131a3aa0", "stamp_and_store", name.." channel", line)
    EnableTrigger("blank_line", true)
 end
 
@@ -161,7 +161,7 @@ function OnPluginBroadcast(msg, id, name, text)
          msg = gmcpdata.msg or ""
          chan = gmcpdata.chan or ""
          if (capture_donations == 1 or string.match(msg, "^CLAN ANNOUNCEMENT: %a+ has donated") == nil) then
-            CallPlugin("dd10517422bc35b5131a3aa0", "stamp_and_store", chan, msg)
+            CallPlugin("dd10517422bc35b5131a3aa0", "stamp_and_store", chan.." channel", msg)
          end
       end
    end

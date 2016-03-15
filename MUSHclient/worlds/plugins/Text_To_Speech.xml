@@ -473,6 +473,10 @@ function NoteSilent(what)
    speak = prev_speak
 end
 
+function OnPluginCommandChanged()
+  speak_skip_all()
+end -- function 
+
 -- Speak from other scripts
 -- eg. CallPlugin ("463242566069ebfd1b379ec1", "say", "What to say")
 function say (what, force_debug_off)

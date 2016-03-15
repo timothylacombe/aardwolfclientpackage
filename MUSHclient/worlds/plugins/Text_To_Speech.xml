@@ -274,13 +274,24 @@ function speak_off (name, line, wildcards)
   say("SAPI auto speak now deactivated.")
 end -- function speak_off
 
+AcceleratorTo("Ctrl+Space", "speak_skip_all()", sendto.script);
+
+function OnPluginCommandEntered (sText)
+  speak_skip_all()
+  return sText
+end -- function 
+
 -- skip a sentence
 function speak_skip (name, line, wildcards)
-  talk:Skip("Sentence", 1)
+  if (talk.Status.RunningState == SAPI_ENUMS.SpeechRunState.SRSEIsSpeaking) then
+    talk:Skip("Sentence", 1)
+  end
 end -- function speak_skip
 
 function speak_skip_all (name, line, wildcards)
-  talk:Speak(' ', SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFPurgeBeforeSpeak)
+  if (talk.Status.RunningState == SAPI_ENUMS.SpeechRunState.SRSEIsSpeaking) then
+    talk:Speak(' ', SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFPurgeBeforeSpeak)
+  end
 end
 
 function speak_faster (name, line, wildcards)
@@ -472,10 +483,6 @@ function NoteSilent(what)
    Note(what)
    speak = prev_speak
 end
-
-function OnPluginCommandChanged()
-  speak_skip_all()
-end -- function 
 
 -- Speak from other scripts
 -- eg. CallPlugin ("463242566069ebfd1b379ec1", "say", "What to say")

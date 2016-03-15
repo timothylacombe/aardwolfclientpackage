@@ -338,15 +338,21 @@ LH-click on the "*" button on the upper-left corner for configuration settings.
    match="mapper hide"
    enabled="y"
    sequence="100"
-   script="mapper.hide"
-></alias>  
+   send_to="12"
+><send>
+   window_hidden = true
+   mapper.hide()
+</send></alias>  
   
 <alias
    match="mapper show"
    enabled="y"
    sequence="100"
-   script="mapper.show"
-></alias>  
+   send_to="12"
+><send>
+   window_hidden = false
+   mapper.show()
+</send></alias>  
 
 <alias
    match="mapper area *"
@@ -365,12 +371,16 @@ LH-click on the "*" button on the upper-left corner for configuration settings.
 ></alias>
 
 <alias
-   match="mapper next"
+   match="^mapper next( .*)?$"
    enabled="y"
+   regexp="y"
    sequence="100"
-   script="mapper.gotoNextResult"
-   regexp="n"
-></alias>
+   send_to="12"
+>
+<send>
+mapper.gotoNextResult(Trim("%1"))
+</send>
+</alias>
 
 <alias
    match="^mapper portals$"
@@ -389,7 +399,7 @@ LH-click on the "*" button on the upper-left corner for configuration settings.
 ></alias>
 
 <alias
-   match="^mapper fullportal (.+) (.+) (\d+)$"
+   match="^mapper fullportal {(.+)} {(.+)} (\d+)$"
    enabled="y"
    sequence="100"
    script="map_portal"
@@ -559,6 +569,18 @@ LH-click on the "*" button on the upper-left corner for configuration settings.
    regexp="y"
    script="OnHelp"
 ></alias>
+
+<alias
+   match="^mapper updown$"
+   enabled="y"
+   regexp="y"
+   send_to="12"
+>
+<send>
+   mapper.show_up_down = not mapper.show_up_down
+   mapper.draw (current_room)
+</send>
+</alias>
 
 </aliases>
 
@@ -746,6 +768,7 @@ toConfirm = ""
 blinded = false
 mylevel = 0
 mytier = 0
+window_hidden =  ((GetVariable("window_hidden") or "0") == "1") -- default false
 use_compression = tonumber(GetVariable("use_compression") or 0)
 quick_mode = ((GetVariable("quick_mode") or "1") == "1") -- default true
 shownotes = ((GetVariable("shownotes") or "1") == "1") -- default true
@@ -883,7 +906,22 @@ function fixbool (b)
 end -- fixbool
 
 function findpathfast(name, line, wildcards)
-   local foundpath = findpath(tonumber(wildcards[1]),tonumber(wildcards[2]))
+   local src = wildcards[1]
+   local dest = wildcards[2]
+   rooms[src] = load_room_from_database(src)
+   rooms[dest] = load_room_from_database(dest)
+   
+   if rooms[src] == nil then
+      mapper.mapprint (string.format ("Room %s not known.", src))
+   end
+   if rooms[dest] == nil then
+      mapper.mapprint (string.format ("Room %s not known.", dest))
+   end
+   if rooms[src] == nil or rooms[dest] == nil then
+      return
+   end
+   
+   local foundpath = findpath(src, dest)
    if foundpath == nil then
       mapper.mapprint (string.format ("Path from %s to %s not found.", wildcards[1], wildcards[2]))
       return
@@ -1354,26 +1392,19 @@ end -- map_recall
 
 -- first map_portal function was contributed by Spartacus.
 function map_portal (name, line, wildcards)
-   -- store portal as an exit from anywhere to the current room
-   res, gmcparg = CallPlugin("3e7dedbe37e44942dd46d264","gmcpval","room.info")
-   luastmt = "gmcpdata = " .. gmcparg
-   assert (loadstring (luastmt or "")) ()
+   -- store portal as an exit from anywhere to the current or given room
+   local destination = wildcards[2] or current_room  
    
-   if not current_room then
+   if not destination then
       print ("PORTAL FAILED: No room received from the mud yet. Try using the 'LOOK' command first.")
       return
-   end -- no room number.map_portal
-  
-   if current_room == "-1" then
-      print("PORTAL FAILED: Cannot link portals to unmappable rooms.")
+   end
+   
+   if not load_room_from_database(destination) then 
+      print("PORTAL ["..wildcards[1].."] FAILED: Room "..destination.." is unknown.")
       return
    end
    
-   if wildcards[2] and not load_room_from_database(wildcards[2]) then 
-      print("PORTAL FAILED: The room "..wildcards[2].." does not exist.")
-      return
-   end
-   local destination = wildcards[2] or current_room
    local level = (level_check(wildcards[3]) and wildcards[3]) or tonumber(utils.inputbox (string.format("Please enter the level of your portal to %s, or leave at 0 for the default",destination), "Portal Level", "0", "Courier", 9, {validate=level_check}))
    
    if not level then
@@ -1467,7 +1498,7 @@ function map_portal_list ()
    local txt
    -- show portals stored in the exits table
    local hl = "+-----+------------+----------------------+-------+----------------------+-----+"
-   local hr = "|   # | area       | room name            |  vnum | portal keywords      | lvl |"
+   local hr = "|   # | area       | room name            |  vnum | portal commands      | lvl |"
 
    Note ("\n"..hl)
    Note (hr)
@@ -3101,17 +3132,18 @@ function after_update_check()
       return
    end -- they didn't enable us last time
 
-   if IsConnected() then
-      OnPluginConnect()
-      Send_GMCP_Packet("request char")
-      Send_GMCP_Packet("request room")
-   else
+   OnPluginEnable()
+   if not IsConnected() then
       OnPluginDisconnect()
    end
 end -- OnPluginInstall
 
-function OnPluginEnable ()
-   mapper.show ()
+function OnPluginEnable()
+   if not window_hidden then
+      mapper.show()
+   else
+      Note("------ Your mapper is active but hidden. --------")
+   end
    if IsConnected() then
       OnPluginConnect()
       Send_GMCP_Packet("request char")
@@ -3123,7 +3155,7 @@ end -- OnPluginEnable
 -- hide window on removal
 function OnPluginDisable ()
    OnPluginSaveState()
-   mapper.hide ()
+   mapper.hide()
    if IsConnected() then
       OnPluginDisconnect()
    end
@@ -3138,6 +3170,7 @@ function OnPluginClose ()
 end -- OnPluginClose
 
 function OnPluginSaveState ()
+   SetVariable ("window_hidden", window_hidden and "1" or "0")
    SetVariable ("enabled", tostring (GetPluginInfo (GetPluginID (), 17)))
    if mapper.config.SCAN.depth < temp_scan_depth then
       -- then we probably caught ourselves in a botched run or something
@@ -4161,10 +4194,10 @@ function OnPluginSent (sText)
    end -- if 
 end -- function
 
-function toggleBackups(on)
+function toggleBackups(on, quiet)
    if on then
       EnableTimer("backup_timer", true)
-      Note("Automated map database backup enabled.")
+      if not quiet then Note("Automated map database backup enabled.") end
       if ((os.time()-last_auto_backup) >= 86401) then
          Note("It looks like it has been more than 24 hours since your last automatic mapper database backup!")
          Note("Forcing an automatic backup now...")
@@ -4174,7 +4207,7 @@ function toggleBackups(on)
       end
    else
       EnableTimer("backup_timer", false)
-      Note("Automated map database backup disabled.")
+      if not quiet then Note("Automated map database backup disabled.") end
    end
 end
 
@@ -4193,7 +4226,7 @@ function OnPluginConnect ()
          -- replace the timer with a new one that has the right time
          AddTimer("backup_timer", hours, minutes, seconds, "", timer_flag.Replace + timer_flag.Enabled + timer_flag.ActiveWhenClosed + timer_flag.OneShot, "automatic_backup")
       end
-      toggleBackups(true)
+      toggleBackups(true, true)
    end
    Send_GMCP_Packet("rawcolor on")
    mapper.cancel_speedwalk ()
@@ -4211,7 +4244,7 @@ function OnPluginDisconnect ()
       db:close()
    end
    if GetVariable("backup_timer_enabled") == "1" then
-      toggleBackups(false)
+      toggleBackups(false, true)
    end
 end -- OnPluginConnect
 
@@ -4252,7 +4285,8 @@ function OnHelp (name, line, wildcards)
 [[mapper zoom out                --> Zoom out]],
 [[mapper zoom in                 --> Zoom in]],
 [[mapper hide                    --> Hide map]],
-[[mapper show                    --> Show map]]
+[[mapper show                    --> Show map]],
+[[mapper updown                  --> Toggle up/down exit drawing]]
 },
 
    ['utils'] = {
@@ -4361,6 +4395,7 @@ all portal aspects in one command without being in the target room.]],
 [[]],
 [[mapper next                    --> Visit the next room in the most recent
                                  > list of results.]],
+[[mapper next <index>            --> Ditto, but skip to the given result index.]],
 [[mapper where <room id>         --> Show directions to a room number]]
 },
 

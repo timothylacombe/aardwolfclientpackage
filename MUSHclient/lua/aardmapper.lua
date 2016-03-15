@@ -83,9 +83,6 @@ local supplied_get_room
 local room_click
 local timing            -- true to show timing and other info
 local show_completed    -- true to show "Speedwalk completed."
-local show_other_areas  -- true to draw other areas
-local show_area_exits   -- true to show area exits
-local show_up_down      -- true to show up/down exits
 
 -- current room number
 local current_room
@@ -970,7 +967,7 @@ function draw (uid)
    add_resize_tag()
 
    -- make sure window visible
-   WindowShow (win, not hidden)
+   WindowShow (win, not window_hidden)
 
    last_drawn = uid  -- last room number we drew (for zooming)
    
@@ -1074,7 +1071,7 @@ function init (t)
    draw_edge()
    add_resize_tag()
    
-   WindowShow (win, true)
+   WindowShow (win, not window_hidden)
    WindowShow (config_win, false)
    
 end -- init  
@@ -1155,20 +1152,20 @@ function maperror (...)
    SetNoteColourFore (old_note_colour)
 end -- maperror
 
-function show ()
-   WindowShow (win, true)
+function show()
+   WindowShow(win, true)
    hidden = false
 end -- show
 
-function hide ()
-   WindowShow (win, false)
+function hide()
+   WindowShow(win, false)
    hidden = true
 end -- hide
 
 function save_state ()
    SetVariable("ROOM_SIZE", ROOM_SIZE)
    SetVariable("DISTANCE_TO_NEXT_ROOM", DISTANCE_TO_NEXT_ROOM)
-   if WindowInfo(win,1) then
+   if WindowInfo(win,1) and WindowInfo(win,5) then
       movewindow.save_state (win)
    end
 end -- save_state
@@ -1244,7 +1241,7 @@ function full_find (name, dests, show_uid, expected_count, walk, fcb, no_portals
       if current_room ~= uid then
          table.insert(last_result_list, uid)
          Hyperlink ("!!" .. GetPluginID () .. ":mapper.hyperlinkGoto(" .. uid .. ")", 
-            room_name, "Click to speedwalk there (" .. distance .. ")", "", "", false)
+            "["..#last_result_list.."] "..room_name, "Click to speedwalk there (" .. distance .. ")", "", "", false)
       else
          Tell(room_name)
       end
@@ -1313,9 +1310,9 @@ function quick_find(name, dests, show_uid, expected_count, walk, fcb)
       if current_room ~= v.uid then
          table.insert(last_result_list, v.uid)
          Hyperlink ("!!" .. GetPluginID () .. ":mapper.hyperlinkGoto("..v.uid..")", 
-            room_name, "Click to speedwalk there", "", "", false)
+            "["..#last_result_list.."] "..room_name, "Click to speedwalk there", "", "", false)
       else
-         ColourTell(RGBColourToName(MAPPER_NOTE_COLOUR.colour),"",room_name)
+         ColourTell(RGBColourToName(MAPPER_NOTE_COLOUR.colour),"","[you are here] "..room_name)
       end
       
       local info = ""
@@ -1337,17 +1334,28 @@ function quick_find(name, dests, show_uid, expected_count, walk, fcb)
    Note("+-------------------------------- END OF SEARCH -------------------------------+")
 end
 
-function gotoNextResult()
-   if next_result_index ~= nil then
-      next_result_index = next_result_index+1
-      if next_result_index <= #last_result_list then
+function gotoNextResult(which)
+   if tonumber(which) == nil then
+      if next_result_index ~= nil then
+         next_result_index = next_result_index+1
+         if next_result_index <= #last_result_list then
+            mapper.goto(last_result_list[next_result_index])
+            return
+         else
+            next_result_index = nil
+         end
+      end
+      ColourNote(RGBColourToName(MAPPER_NOTE_COLOUR.colour),"","NEXT ERROR: No more NEXT results left.")
+   else
+      next_result_index = tonumber(which)
+      if (next_result_index > 0) and (next_result_index <= #last_result_list) then
          mapper.goto(last_result_list[next_result_index])
          return
       else
+         ColourNote(RGBColourToName(MAPPER_NOTE_COLOUR.colour),"","NEXT ERROR: There is no NEXT result #"..next_result_index..".")
          next_result_index = nil
       end
    end
-   ColourNote(RGBColourToName(MAPPER_NOTE_COLOUR.colour),"","NEXT ERROR: No more NEXT results left.")
 end
 
 function goto(uid)

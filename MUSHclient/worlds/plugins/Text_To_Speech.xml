@@ -335,6 +335,7 @@ replacements = { -- arbitrary text filtering heuristics
    {string.rep("[%-%+%^=#$~><%*`_:]", 2).."+", " "}, -- symbol garbage
    {"|", " "}, -- symbol garbage
    -- fix contextual pronunciation
+   {"plugin", "pluggin"},
    {"([%[%(%{])", " %1"}, -- "()()"
    {"([%]%}%)])", "%1 "}, -- "()()"
    {"(%d)%*(%d)", "%1 times %2"}, -- "*"

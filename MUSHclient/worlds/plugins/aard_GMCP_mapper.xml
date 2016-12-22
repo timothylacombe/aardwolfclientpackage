@@ -19,7 +19,7 @@
    author="Multiple"
    id="b6eae87ccedd84f510b74714"
    language="Lua"
-   purpose="Draws GMCP map for Aardwolf"
+   purpose="GMCP map builder for Aardwolf"
    date_written="2010-09-01 16:37:14"
    requires="4.73"
    version="2.0"
@@ -29,16 +29,7 @@
 <description trim="y">
 <![CDATA[
 AUTOMATIC MAPPER by Fiendish
-** This is a very improved GMCP version of the original ATCP mapper by Nick Gammon.
-** Some GMCP specific code added by Lasher.
-** A few features contributed by Spartacus.
-** Many major improvements made to Nick's original design by Fiendish.
-
-The window can be dragged to a new location by dragging the room name.
-LH-click on a room to speedwalk to it. RH-click on a room for options.
-
-LH-click on the "*" button on the upper-left corner for configuration settings.
-(click again on the [x] to close configuration)
+** This is a very improved Aardwolf version of the original ATCP mapper concept by Nick Gammon.
 ]]>
 </description>
 </plugin>
@@ -171,22 +162,6 @@ LH-click on the "*" button on the upper-left corner for configuration settings.
    sequence="100"
    script="compact_mode_toggle"
 ></alias>
-  
-<alias
-   match="mapper zoom out"
-   enabled="y"
-   sequence="100"
-   omit_from_output="y"
-   script="mapper.zoom_out"
-></alias>
-  
-<alias
-   match="mapper zoom in"
-   enabled="y"
-   sequence="100"
-   omit_from_output="y"
-   script="mapper.zoom_in"
-></alias>  
 
 <alias
    match="mapper lockexit"
@@ -340,27 +315,7 @@ LH-click on the "*" button on the upper-left corner for configuration settings.
    enabled="y"
    sequence="100"
    script="mapper.cancel_speedwalk"
-></alias>  
-   
-<alias
-   match="mapper hide"
-   enabled="y"
-   sequence="100"
-   send_to="12"
-><send>
-   window_hidden = true
-   mapper.hide()
-</send></alias>  
-  
-<alias
-   match="mapper show"
-   enabled="y"
-   sequence="100"
-   send_to="12"
-><send>
-   window_hidden = false
-   mapper.show()
-</send></alias>  
+></alias>
 
 <alias
    match="mapper area *"
@@ -578,18 +533,6 @@ mapper.gotoNextResult(Trim("%1"))
    script="OnHelp"
 ></alias>
 
-<alias
-   match="^mapper updown$"
-   enabled="y"
-   regexp="y"
-   send_to="12"
->
-<send>
-   mapper.show_up_down = not mapper.show_up_down
-   mapper.draw (current_room)
-</send>
-</alias>
-
 </aliases>
 
 <triggers>
@@ -776,7 +719,7 @@ toConfirm = ""
 blinded = false
 mylevel = 0
 mytier = 0
-window_hidden =  ((GetVariable("window_hidden") or "0") == "1") -- default false
+window_hidden =  true
 use_compression = tonumber(GetVariable("use_compression") or 0)
 quick_mode = ((GetVariable("quick_mode") or "1") == "1") -- default true
 shownotes = ((GetVariable("shownotes") or "1") == "1") -- default true
@@ -4334,11 +4277,6 @@ function OnHelp (name, line, wildcards)
                                  > The default setting is uncompressed (off)]],
 [[mapper help                    --> This help
                                  > (or click the "?" button on the top right)]],
-[[mapper zoom out                --> Zoom out]],
-[[mapper zoom in                 --> Zoom in]],
-[[mapper hide                    --> Hide map]],
-[[mapper show                    --> Show map]],
-[[mapper updown                  --> Toggle up/down exit drawing]]
 },
 
    ['utils'] = {

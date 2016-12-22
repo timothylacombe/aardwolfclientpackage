@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="iso-8859-1"?>
 <!DOCTYPE muclient>
-
 <!-- Based on work by Nick Gammon based on work by Tyler Spivey -->
 <!-- See: http://www.gammon.com.au/forum/bbshowpost.php?bbsubject_id=7767 -->
 <muclient>
@@ -275,13 +274,24 @@ function speak_off (name, line, wildcards)
   say("SAPI auto speak now deactivated.")
 end -- function speak_off
 
+AcceleratorTo("Ctrl+Space", "speak_skip_all()", sendto.script);
+
+function OnPluginCommandEntered (sText)
+  speak_skip_all()
+  return sText
+end -- function 
+
 -- skip a sentence
 function speak_skip (name, line, wildcards)
-  talk:Skip("Sentence", 1)
+  if (talk.Status.RunningState == SAPI_ENUMS.SpeechRunState.SRSEIsSpeaking) then
+    talk:Skip("Sentence", 1)
+  end
 end -- function speak_skip
 
 function speak_skip_all (name, line, wildcards)
-  talk:Speak(' ', SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFPurgeBeforeSpeak)
+  if (talk.Status.RunningState == SAPI_ENUMS.SpeechRunState.SRSEIsSpeaking) then
+    talk:Speak(' ', SAPI_ENUMS.SpeechVoiceSpeakFlags.SVSFPurgeBeforeSpeak)
+  end
 end
 
 function speak_faster (name, line, wildcards)
@@ -311,21 +321,55 @@ function speak_rate (name, line, wildcards)
   end
 end
 
-western_happy_faces = "[8:]%-?[D%)%]]" -- arbitrary heuristics
-western_sad_faces = "[8:;]%-?[%(%[]" -- arbitrary heuristics
-another_sad_face = "%-_%-" -- arbitrary heuristics
-another_happy_face = "%^_%^" -- arbitrary heuristics
-western_wink_faces = ";%-?[D%)%]]" -- arbitrary heuristics
-western_tongue_faces = "[8:;]%-?[pP9b]" -- arbitrary heuristics
-remove_two_or_more_of_these = "[%-%+%^#$~><*`_]" -- arbitrary heuristics
-remove_three_or_more_of_these = "[%p\\/|_%-%(%)%[]{}%%%+%^#%$~><*`_]" -- arbitrary heuristics
-silent_if_only_these = "[%p%s]+" -- arbitrary heuristics
-two_or_more_pattern = remove_two_or_more_of_these:rep(2).."+" -- arbitrary heuristics
-three_or_more_pattern = remove_three_or_more_of_these:rep(3).."+" -- arbitrary heuristics
-pad_left_braces = "([%[%(%{])" -- arbitrary heuristics
-pad_right_braces = "([%]%}%)])" -- arbitrary heuristics
+replacements = { -- arbitrary text filtering heuristics
+   {"[:]%-?[D%)%]]", ", smiley. "}, -- western emoticons
+   {"[:;]%-?[%(%[]", ", sad-face. "}, -- western emoticons
+   {";%-?[D%)%]]", ", winks. "}, -- western emoticons
+   {"[:;]%-?[pP9b]", " sticks-tongue-out. "}, -- western emoticons
+   {"8%-[D%)%]]", ", smiley. "}, -- 8- western emoticons
+   {"8%-[%(%[]", ", sad-face. "}, -- 8- western emoticons
+   {"8%-[pP9b]]", ", sticks-tongue-out. "}, -- 8- western emoticons
+   {"%^_%^", ", smiley. "}, -- another emoticon
+   {"%-_%-", ", sad-face. "}, -- another emoticon
+   {string.rep("[%p\\/|_%-%(%)%[%]%{%}%%%+%^%#%$~><%*`_]", 3).."+", " "}, -- symbol garbage
+   {string.rep("[%-%+%^=#$~><%*`_:]", 2).."+", " "}, -- symbol garbage
+   {"|", " "}, -- symbol garbage
+   -- fix contextual pronunciation
+   {"plugin", "pluggin"},
+   {"([%[%(%{])", " %1"}, -- "()()"
+   {"([%]%}%)])", "%1 "}, -- "()()"
+   {"(%d)%*(%d)", "%1 times %2"}, -- "*"
+   {"([%d,]+%.?[%d]*)%/(%a)", "%1 per %2"}, -- "#/a"
+   {"%f[%a][dD][bB]", ", D B, "}, -- stop saying decibels
+   {"%f[%a]afk%f[%A]", " AFK "}, -- spell it
+   {"%f[%a]omg%f[%A]", " OMG "}, -- spell it
+   {"%f[%a][vV][iI]%f[%A]", " V I "}, -- spell it
+   {"%f[%a]pwned", " p'owned "}, -- say it
+   {"thx", " thanks "}, -- say it
+   {"%f[%a]%u+%f[%A]", function(a) if a:sub(2):find("[AEIOUY]") then return string.lower(a) else return a end end}, -- say GLACIATES and ROFL, but still spell AFK and OMG
+   -- aardwolf words
+   {"%f[%a][pP]file", " P file"},
+   {"%f[%a][gG]clan", " G clan"},
+   {"%f[%a][gG]tell", " G tell"},
+   {"%f[%a][fF]talk", " F talk"},
+   {"%f[%a][gG]clan", " G clan"},
+   {"%f[%a][gG]social", " G social"},
+   {"%f[%a][rR]auction", " R auction"},
+   {"%f[%a][gG]ametalk", " game-talk"},
+   {"%f[%a][nN]obletalk", " noble-talk"}, 
+   {"%f[%a][tT]iertalk", " tier-talk"},
+   {"%f[%a][rR]acetalk", " race-talk"},
+   {"%f[%a][cC]lantalk", " clan-talk"},
+   {"%f[%a][pP]okerinfo", " poker-info"},
+   {"%f[%a][mM]afiainfo", " mafia-info"},
+   {"%f[%a][aA]ylor", " aylor "} -- Aylorian->ALIEN??? hahahaha what
+}
+silent_if_only_these = "[%p%s]+"
+
 function filter_more_punctuation(msg) -- uses arbitrary heuristics
-  msg = msg:gsub(western_happy_faces, ", smiley. "):gsub(western_sad_faces, ", sad-face. "):gsub(western_wink_faces, ", winks. "):gsub(western_tongue_faces, ", sticks-tongue-out. "):gsub(another_sad_face, ", sad-face. "):gsub(another_happy_face, ", smiley. "):gsub(three_or_more_pattern, " "):gsub(two_or_more_pattern, " "):gsub("|", " "):gsub(pad_left_braces, " %1"):gsub(pad_right_braces, "%1 ")
+  for i,sub in ipairs(replacements) do
+     msg = msg:gsub(sub[1], sub[2])
+  end
   if msg:gsub(silent_if_only_these, "") == "" then
     return ""
   else

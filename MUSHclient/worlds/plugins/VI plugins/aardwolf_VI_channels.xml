@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE muclient>
+
+<muclient>
+<plugin
+   name="Aardwolf_VI_Channels"
+   author="Fiendish"
+   id="b57112ee37fae1a3967648f4"
+   language="Lua"
+   purpose="Channel information capture"
+   date_written="2016-02-14"
+   requires="5.01"
+   version="0.1"
+   save_state="y"
+>
+
+<description trim="y">
+</description>
+  
+</plugin>
+
+<triggers>
+<trigger
+   enabled="y"
+   name="pray"
+   match="^\[ \*\* \(Pray\) \*\* \].+$"
+   regexp="y"
+   script="untagged_info"
+   sequence="100"
+   omit_from_output="y"
+></trigger>
+
+<trigger
+   enabled="y"
+   name="remort_auction"
+   match="^Remort Auction:.+$"
+   regexp="y"
+   script="untagged_info"
+   sequence="100"
+   omit_from_output="y"
+></trigger>
+
+<trigger
+   enabled="y"
+   name="global_quest"
+   match="^Global Quest:.+$"
+   regexp="y"
+   script="untagged_info"
+   sequence="100"
+   omit_from_output="y"
+></trigger>
+
+<trigger
+   enabled="y"
+   name="info"
+   match="^INFO:.+$"
+   regexp="y"
+   script="untagged_info"
+   sequence="100"
+   omit_from_output="y"
+></trigger>
+
+<trigger
+   enabled="y"
+   name="raidinfo"
+   match="^RAIDINFO:.+$"
+   regexp="y"
+   script="untagged_info"
+   sequence="100"
+   omit_from_output="y"
+></trigger>
+
+<trigger
+   enabled="y"
+   name="claninfo"
+   match="^CLANINFO:.+$"
+   regexp="y"
+   script="untagged_info"
+   sequence="100"
+   omit_from_output="y"
+></trigger>
+
+<trigger
+   enabled="y"
+   name="warfare"
+   match="^(WARFARE|GENOCIDE):.+$"
+   regexp="y"
+   script="untagged_info"
+   sequence="100"
+   omit_from_output="y"
+></trigger>
+
+<trigger
+   enabled="y"
+   name="blessing"
+   match="^BLESSING: Your daily blessing is available\.$"
+   regexp="y"
+   script="untagged_info"
+   sequence="100"
+   omit_from_output="y"
+></trigger>
+
+
+<trigger
+   enabled="n"
+   name="blank_line"
+   match="^$"
+   regexp="y"
+   sequence="100"
+   omit_from_output="y"
+   send_to="12"
+><send>
+EnableTrigger("blank_line", false)
+</send>
+</trigger>
+
+</triggers>
+
+<script>
+<![CDATA[
+
+require "gmcphelper"
+
+capture_donations = tonumber(GetVariable("capture_donations")) or 0
+
+require "checkplugin"
+function OnPluginListChanged()
+   -- check we have necessary plugins
+   do_plugin_check_now("3e7dedbe37e44942dd46d264", "aard_GMCP_handler")
+   do_plugin_check_now("dd10517422bc35b5131a3aa0", "VI_captures")
+end
+
+function OnPluginConnect()
+   Send_GMCP_Packet("gmcpchannels on")
+end
+
+function OnPluginEnable()
+   -- if we are connected when the plugin loads, it must have been reloaded while playing
+   if IsConnected() then
+      OnPluginConnect()
+   end
+end
+
+function OnPluginSaveState()
+   SetVariable("capture_donations", capture_donations)
+end
+
+function untagged_info(name, line, wildcards, styles)
+   CallPlugin("dd10517422bc35b5131a3aa0", "stamp_and_store", name.." channel", line)
+   EnableTrigger("blank_line", true)
+end
+
+function OnPluginBroadcast(msg, id, name, text)
+   -- Look for GMCP handler.
+   if (id == '3e7dedbe37e44942dd46d264') then
+      if (text == "comm.channel") then
+         res, gmcparg = CallPlugin("3e7dedbe37e44942dd46d264","gmcpval","comm.channel")         
+         luastmt = "gmcpdata = " .. gmcparg
+         assert (loadstring (luastmt or ""))()
+
+         msg = gmcpdata.msg or ""
+         chan = gmcpdata.chan or ""
+         if (capture_donations == 1 or string.match(msg, "^CLAN ANNOUNCEMENT: %a+ has donated") == nil) then
+            CallPlugin("dd10517422bc35b5131a3aa0", "stamp_and_store", chan.." channel", msg)
+         end
+      end
+   end
+end
+
+function OnPluginInstall()
+end
+
+]]>
+</script>
+</muclient>

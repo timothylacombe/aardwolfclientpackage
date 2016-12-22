@@ -1,0 +1,822 @@
+<?xml version="1.0" encoding="iso-8859-1"?>
+<!DOCTYPE muclient>
+
+<muclient>
+<plugin
+   name="VI_captures"
+   author="Fiendish"
+   id="dd10517422bc35b5131a3aa0"
+   language="Lua"
+   purpose="Capture buffers with keyboard navigation"
+   date_written="2016-02-14"
+   requires="5.01"
+   version="0.1"
+   save_state="y"
+>
+
+<description trim="y">
+Capture buffers with keyboard navigation
+</description>
+  
+</plugin>
+
+<aliases>
+
+<alias
+   script="dump_capture"
+   match="^mc dump( .*)?$"
+   enabled="y"
+   regexp="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="switch_to_capture_by_name"
+   match="mc switch *"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="next_capture"
+   match="mc next"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="prev_capture"
+   match="mc prev"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="list_captures"
+   match="mc list*"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="next_line"
+   match="mc next line"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="prev_line"
+   match="mc prev line"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="last_line"
+   match="mc last line"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="first_line"
+   match="mc first line"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="show_line"
+   match="mc show"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="latest_url"
+   match="mc latest url"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="copy_line"
+   match="mc copy"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="copy_next_url"
+   match="mc copy next url"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="copy_prev_url"
+   match="mc copy prev url"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="browser_copied_url"
+   match="mc browse copied url"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="delete_line"
+   match="mc delete line"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="clear_capture"
+   match="mc clear"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="remove_capture"
+   match="mc remove*"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="loud_capture"
+   match="mc loud*"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   script="quiet_capture"
+   match="mc quiet*"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+></alias>
+
+<alias
+   match="mc help"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+   send_to="12"
+><send>
+stamp_and_store("help","Detailed help for the VI captures plug-in is included in a text file called VI_captures_README.txt in the same location as the plug-in.")
+stamp_and_store("help","Available commands are:")
+stamp_and_store("help","mc switch")
+stamp_and_store("help","mc next")
+stamp_and_store("help","mc prev")
+stamp_and_store("help","mc list")
+stamp_and_store("help","mc next line")
+stamp_and_store("help","mc prev line")
+stamp_and_store("help","mc first line")
+stamp_and_store("help","mc last line")
+stamp_and_store("help","mc show")
+stamp_and_store("help","mc copy")
+stamp_and_store("help","mc copy next url")
+stamp_and_store("help","mc copy prev url")
+stamp_and_store("help","mc browse copied url")
+stamp_and_store("help","mc delete line")
+stamp_and_store("help","mc clear")
+stamp_and_store("help","mc remove")
+stamp_and_store("help","mc loud")
+stamp_and_store("help","mc quiet")
+stamp_and_store("help","This information has been stored in the [help] capture.")
+</send>
+</alias>
+
+<alias
+   match="mc destroy all"
+   enabled="y"
+   sequence="100"
+   ignore_case="y"
+   send_to="12"
+><send>
+captures_flags = {}
+current_capture = nil
+DeleteVariable("captures_flags")
+DeleteVariable("current_capture")
+OnPluginSaveState()
+</send>
+</alias>
+
+</aliases>
+
+<script>
+<![CDATA[
+
+require "pairsbykeys"
+dofile(GetInfo(60).."aardwolf_colors.lua")
+MAX_CAPTURE_LINES = 1000
+
+-- date_format = "%d %b %H:%M:%S"   -- 30 Aug 13:29:49   date and time 24 hour
+-- date_format = "%d %b %I:%M:%S%p" -- 30 Aug 01:20:12PM date and time 12 hour
+-- date_format = "%H:%M:%S"         -- 13:29:08          time 24 hour
+-- date_format = "%X"               -- 1:22:06 PM        time 12 hour
+date_format = GetVariable("date_format") or "%d %b %H:%M:%S"
+log_to_file = tonumber(GetVariable("log_to_file")) or 0
+log_timestamps = tonumber(GetVariable("log_timestamps")) or 1
+
+url_index = nil
+last_url = nil
+history_buffer = {} -- per-session capture storage
+current_history_line = {} -- per-session current line indices for each capture
+current_capture = GetVariable("current_capture") -- which capture is currently viewed
+loadstring(GetVariable("captures_flags") or "captures_flags = {}")() -- store which captures are quiet/loud/etc
+
+for k,v in pairs(captures_flags) do
+   history_buffer[k] = {}
+   current_history_line[k] = 1
+end
+sorted_capture_indices = {}
+
+require "checkplugin"
+function OnPluginListChanged()
+   -- check we have necessary plugins
+   do_plugin_check_now("463242566069ebfd1b379ec1", "Text_To_Speech")
+end
+   
+require "serialize"
+function OnPluginSaveState()
+   SetVariable("date_format", date_format)
+   SetVariable("log_to_file", log_to_file)
+   SetVariable("log_timestamps", log_timestamps)
+   if captures_flags then
+      SetVariable("captures_flags", serialize.save("captures_flags"))
+   end
+   if current_capture  then
+      SetVariable("current_capture", current_capture)
+   end
+end
+
+-- Returns an array {start, end, text}
+function findURLs(text)
+   local URLs = {}
+   local start, position = 0, 0
+   -- "rex" is a table supplied by MUSHclient for PCRE functionality.
+   local re = rex.new("(?:https?://|mailto:)\\S*[\\w/=@#\\-\\?]")
+   re:gmatch(text,
+      function (link, _)
+         start, position = string.find(text, link, position, true)
+         table.insert(URLs, {start=start, stop=position, text=link})
+      end
+   )
+   return URLs
+end
+
+function reindex_captures()
+   sorted_capture_indices = {}
+   for k,_ in pairs(captures_flags) do
+      table.insert(sorted_capture_indices, k)
+   end
+   table.sort(sorted_capture_indices)
+   
+   if #sorted_capture_indices > 0 then
+      if current_capture then
+         current_capture_index = get_capture_index(current_capture)
+      else
+         current_capture_index = 1
+         current_capture = sorted_capture_indices[1]
+      end
+   else
+      current_capture_index = nil
+      current_capture = nil
+   end
+   OnPluginSaveState()
+end
+
+function add_capture_if_new(capture, read_timestamps, history, max_capture_lines, autoecho, prevent_reindex)
+   if not captures_flags[capture] then
+      if capture == "all" then
+         show("Cannot create capture with keyword \"all\".")
+         return
+      end
+      captures_flags[capture] = {}
+      
+      if read_timestamps ~= nil then
+         captures_flags[capture].read_timestamps = read_timestamps
+      else
+         captures_flags[capture].read_timestamps = true
+      end
+      
+      if history ~= nil then
+         captures_flags[capture].history = history
+      else
+         captures_flags[capture].history = true
+      end
+      
+      if max_capture_lines ~= nil then
+         captures_flags[capture].max_capture_lines = max_capture_lines
+      else
+         captures_flags[capture].max_capture_lines = MAX_CAPTURE_LINES
+      end
+      
+      if autoecho ~= nil then
+         captures_flags[capture].autoecho = autoecho
+      else
+         captures_flags[capture].autoecho = true
+      end
+         
+      history_buffer[capture] = {}
+      current_history_line[capture] = 1
+      
+      if not prevent_reindex then
+         reindex_captures()
+      end
+   end
+end
+
+function get_capture_index(capture)
+   for i,v in ipairs(sorted_capture_indices) do
+      if v == capture then
+         return i
+      end
+   end
+end
+
+function sanitize_filename(str)
+   str = string.gsub(str, "[^%w%s()_-]", "")
+   return Trim(str)
+end
+
+function stamp_and_store(capture, msg, timestamp)
+   local text = ""
+   local log_text = ""
+   
+   msg = strip_colours(msg)
+   if tonumber(timestamp) == nil then
+      timestamp = os.time()
+   end
+   
+--[[
+   if (log_to_file == 1) then
+      if (log_timestamps == 0) then
+         log_text = msg
+      else
+         log_text = os.date(date_format, timestamp)..msg
+      end
+      local filename = GetInfo(58):gsub("^.\\",GetInfo(56))..sanitize_filename(GetInfo(2)).."CaptureLog.txt"
+      local f, err = io.open (filename, "a+") -- handle to capture log file
+      if f then
+         f:write(log_text.."\n") -- write to it
+         f:close()  -- close that file now
+      else
+         show("CAPTURE LOG ERROR: Failed to access your capture logging file because of the following reason:" )
+         show(err)
+         show("Fix the problem or disable Logging to File in the "..GetPluginInfo(1).." plugin.")
+      end
+   end
+--]]
+
+   local urls = findURLs(msg)
+   -- store the line
+   add_capture_if_new(capture)
+   if captures_flags[capture].history then
+      if #(history_buffer[capture]) >= captures_flags[capture].max_capture_lines then
+         table.remove(history_buffer[capture], 1) -- remove oldest
+      end
+      table.insert(history_buffer[capture], {["msg"]=msg, ["urls"]=urls, ["timestamp"]=timestamp})
+   else
+      history_buffer[capture][1] = {["msg"]=msg, ["urls"]=urls, ["timestamp"]=timestamp}
+   end
+   if captures_flags[capture].autoecho then
+      show(capture, msg)
+      if #urls > 0 then
+         show("Found "..tostring(#urls).." URL"..(#urls == 1 and "" or "s"))
+         latest_url_capture_index = #history_buffer[capture]
+         latest_url_capture = capture
+      end
+   end
+end
+
+function latest_url()
+   if not latest_url_capture then
+      show("No urls seen yet.")
+      return
+   end
+   current_capture = latest_url_capture
+   current_history_line[current_capture] = latest_url_capture_index
+   show("Switching pointer to location of most recent URL capture.")
+   show_line()
+end
+
+function list_captures(name, line, wildcards)
+   local flag = Trim(wildcards[1])
+   if flag == "" or flag == "all" then 
+      flag = "known"
+   end
+   if flag=="known" or flag=="loud" or flag=="quiet" or flag=="history" or flag=="nohistory" then
+      show("The following captures are "..flag..":")
+      for k,cflags in pairsByKeys(captures_flags) do
+         if (flag == "known") or (flag=="loud" and cflags.autoecho) or (flag=="quiet" and not cflags.autoecho) or (flag=="history" and cflags.history) or (flag=="nohistory" and not cflags.history) then
+            show(k, cflags.autoecho and "loud" or "quiet", cflags.history and "history" or "no history", cflags.history and #(history_buffer[k]) or "")
+         end
+      end
+   else
+      show("In-valid list option \""..flag.."\". Choices are loud, quiet, history, nohistory, all.")
+   end
+   show("")
+end
+
+function switch_to_capture(capture, keep_quiet)
+   current_capture_index = get_capture_index(capture)
+   current_capture = capture
+   local cflags = captures_flags[capture]
+   local nlines = #(history_buffer[capture])
+   if not keep_quiet then
+      show("Switched to capture for "..capture,(cflags.history and (tostring(nlines).." line"..(nlines==1 and "" or "s").." stored") or ""),"Flags are", cflags.autoecho and "loud" or "quiet", cflags.history and "history" or "no history")
+   end
+   OnPluginSaveState()
+end
+
+function switch_to_capture_by_name(name, line, wildcards)
+   local capture = Trim(wildcards[1])
+   if not captures_flags[capture] then
+      show(capture,"is not a capture.")
+      return
+   end
+   switch_to_capture(capture)
+end
+
+function next_capture(keep_quiet)
+   if #sorted_capture_indices <= 1 then
+      if not keep_quiet then
+         show("There are no other captures.")
+      end
+      return
+   end
+   local next_capture_index = current_capture_index+1
+   if next_capture_index > #sorted_capture_indices then
+      next_capture_index = 1
+   end
+   switch_to_capture(sorted_capture_indices[next_capture_index], keep_quiet)
+end
+
+function prev_capture(keep_quiet)
+   if #sorted_capture_indices <= 1 then
+      if not keep_quiet then
+         show("There are no other captures.")
+      end
+      return
+   end
+   local next_capture_index = current_capture_index-1
+   if next_capture_index < 1 then
+      next_capture_index = #sorted_capture_indices
+   end
+   switch_to_capture(sorted_capture_indices[next_capture_index], keep_quiet)
+end
+
+function next_line()
+   if not current_capture then
+      show("No current capture selected.")
+      return
+   end
+   if not captures_flags[current_capture].history then
+      show("The capture for",current_capture,"does not record history.")
+      return
+   end
+   if #(history_buffer[current_capture]) > 0 then
+      current_history_line[current_capture] = math.min(current_history_line[current_capture]+1, #(history_buffer[current_capture]))
+   end
+   show_line()
+end
+
+function prev_line()
+   if not current_capture then
+      show("No current capture selected.")
+      return
+   end
+   if not captures_flags[current_capture].history then
+      show("The capture for",current_capture,"does not record history.")
+      return
+   end
+   if #(history_buffer[current_capture]) > 0 then
+      current_history_line[current_capture] = math.max(current_history_line[current_capture]-1, 1)
+   end
+   show_line()
+end
+
+function last_line()
+   if not current_capture then
+      show("No current capture selected.")
+      return
+   end
+   if not captures_flags[current_capture].history then
+      show("The capture for",current_capture,"does not record history.")
+      return
+   end
+   if #(history_buffer[current_capture]) > 0 then
+      current_history_line[current_capture] = #(history_buffer[current_capture])
+   end
+   show_line()
+end
+
+function first_line()
+   if not current_capture then
+      show("No current capture selected.")
+      return
+   end
+   if not captures_flags[current_capture].history then
+      show("The capture for",current_capture,"does not record history.")
+      return
+   end
+   if #(history_buffer[current_capture]) > 0 then
+      current_history_line[current_capture] = 1
+   end
+   show_line()
+end
+
+function copy_next_url()
+   if not current_capture then
+      show("No current capture selected.")
+      return
+   end
+   if #(history_buffer[current_capture]) == 0 then
+      show("Capture for",current_capture,"is empty.")
+      return
+   end
+   local current_line = current_history_line[current_capture]
+   local urls = history_buffer[current_capture][current_line].urls
+   local nurls = #urls
+   if nurls > 0 then
+      url_index = (url_index or 0) + 1
+      if url_index > nurls then
+         url_index = 1
+      end
+      last_url = urls[url_index].text
+      SetClipboard(last_url)
+      show("URL copied to clipboard: ", last_url)
+   end
+end
+
+function copy_prev_url()
+   if not current_capture then
+      show("No current capture selected.")
+      return
+   end
+   if #(history_buffer[current_capture]) == 0 then
+      show("Capture for",current_capture,"is empty.")
+      return
+   end
+   local current_line = current_history_line[current_capture]
+   local urls = history_buffer[current_capture][current_line].urls
+   local nurls = #urls
+   if nurls > 0 then
+      url_index = (url_index or (nurls+1)) - 1
+      if url_index < 1 then
+         url_index = nurls
+      end
+      last_url = urls[url_index].text
+      SetClipboard(last_url)
+      show("URL copied to clipboard: ", last_url)
+   end
+end
+
+function browser_copied_url()
+   if OpenBrowser(last_url or "") ~= 0 then
+      show("Error trying to open web browser to",last_url)
+   end
+end
+
+function copy_line()
+   if not current_capture then
+      show("No current capture selected.")
+      return
+   end
+   if #(history_buffer[current_capture]) == 0 then
+      show("Capture for",current_capture,"is empty.")
+      return
+   end
+   local current_line = current_history_line[current_capture]
+   local ln = history_buffer[current_capture][current_line].msg
+   SetClipboard(ln)
+   show("Copied to clipboard: \""..ln.."\"")
+end
+
+function show_line()
+   if not current_capture then
+      show("No current capture selected.")
+      return
+   end
+   if #(history_buffer[current_capture]) == 0 then
+      show("Capture for",current_capture,"is empty.")
+      return
+   end
+   local timestamp_msg = ""
+   local current_line = current_history_line[current_capture]
+   if captures_flags[current_capture].read_timestamps then
+      timestamp_msg = relative_time(history_buffer[current_capture][current_line].timestamp)
+   end
+   if captures_flags[current_capture].history then
+      show(current_capture, tostring(current_line).." of "..tostring(#(history_buffer[current_capture])), timestamp_msg.." "..history_buffer[current_capture][current_line].msg)
+   else
+      show(current_capture, timestamp_msg.." "..history_buffer[current_capture][1].msg)
+   end
+   url_index = nil
+   last_url = nil
+end
+
+function relative_time(that_time)
+   local this_time = os.time()
+   local delta = this_time-that_time
+   if delta < 30 then
+      return "just now"
+   elseif delta < 60 then
+      return "seconds ago"
+   elseif delta < 120 then
+      return "a minute ago"
+   elseif delta < 1200 then
+      return "minutes ago"
+   elseif delta < 2400 then
+      return "a half-hour ago"
+   elseif delta < 4800 then
+      return "an hour ago"
+   elseif delta < 6000 then
+      return "an hour and a half ago"
+   elseif delta < 25200 then
+      return "a few hours ago"
+   elseif delta < 79200 then
+      return "hours ago"
+   elseif delta < 129600 then
+      return "a day ago"
+   elseif delta < 518400 then
+      return "days ago"
+   elseif delta < 907200 then
+      return "a week ago"
+   elseif delta < 2117000 then
+      return "weeks ago"
+   else
+      return "ages ago"
+   end
+end
+
+function delete_line()
+   if not current_capture then
+      show("No current capture selected.")
+      return
+   end
+   local num_lines = #(history_buffer[current_capture])
+   local current_line = current_history_line[current_capture]
+   if num_lines > 0 then
+      show("Deleting line",current_line,"of",num_lines,"from",current_capture,"capture.")
+      table.remove(history_buffer[current_capture], current_line)
+      current_history_line[current_capture] = math.max(math.min(current_history_line[current_capture], num_lines-1),1)
+   end
+   show_line()
+end
+
+function clear_capture(keep_quiet)
+   if not current_capture then
+      if not keep_quiet then
+         show("No current capture selected.")
+      end
+      return
+   end
+   history_buffer[current_capture] = {}
+   current_history_line[current_capture] = 1
+   if not keep_quiet then
+      show("Capture for",current_capture,"is cleared.")
+   end
+end
+
+function echo_off(capture)
+   captures_flags[capture].autoecho = false
+   OnPluginSaveState()
+end
+
+function echo_on(capture)
+   captures_flags[capture].autoecho = true
+   OnPluginSaveState()
+end
+
+function quiet_capture(name, line, wildcards)
+   if not current_capture then
+      show("There are no captures right now.")
+      return
+   end
+   local capture = Trim(wildcards[1])
+   if capture == "" then capture = current_capture end
+   if capture == "all" then
+      -- TODO: verify here
+      for k,v in pairs(captures_flags) do
+         v.autoecho = false
+      end
+      show("Auto speaking for all captures deactivated.")
+      OnPluginSaveState()
+   elseif captures_flags[capture] then
+      echo_off(capture) -- saves
+      show("Auto speaking for",capture,"deactivated.")
+   elseif capture then
+      show(capture,"is not a capture.")
+   end
+end
+
+function loud_capture(name, line, wildcards)
+   if not current_capture then
+      show("There are no captures right now.")
+      return
+   end
+   local capture = Trim(wildcards[1])
+   if capture == "" then capture = current_capture end
+   if capture == "all" then
+      -- TODO: verify here
+      for k,v in pairs(captures_flags) do
+         v.autoecho = true
+      end
+      show("Auto speaking for all captures activated.")
+      OnPluginSaveState()
+   elseif captures_flags[capture] then
+      echo_on(capture) -- saves
+      show("Auto speaking for",capture,"activated.")
+   elseif capture then
+      show(capture,"is not a capture.")
+   end
+end
+
+function remove_capture_internal(capture, keep_quiet)
+   if capture == "all" then
+      -- TODO: verify here
+      history_buffer = {}
+      captures_flags = {}
+      current_history_line = {}
+      current_capture = nil
+      sorted_capture_indices = {}
+      current_capture_index = nil
+      OnPluginSaveState()
+      if not keep_quiet then
+         show("All captures removed.")
+      end
+   elseif captures_flags[capture] then
+      if capture == current_capture then
+         next_capture(keep_quiet)
+      end
+      history_buffer[capture] = nil
+      current_history_line[capture] = nil
+      captures_flags[capture] = nil
+      reindex_captures() -- saves
+      if not keep_quiet then
+         show("Capture for",capture,"is removed.")
+      end
+   else
+      if not keep_quiet then
+         show(capture,"is not a capture.")
+      end
+   end
+end
+
+function remove_capture(name, line, wildcards)
+   if not current_capture then
+      show("There are no captures right now.")
+      return
+   end
+   local capture = Trim(wildcards[1])
+   if capture == "" then 
+      capture = current_capture 
+   end
+   remove_capture_internal(capture)
+end
+
+function dump_capture(name, line, wildcards)
+   --todo
+end
+
+function OnPluginInstall()
+   reindex_captures()
+end
+
+function show(...)
+   CallPlugin ("463242566069ebfd1b379ec1", "say", table.concat({...},", "))
+end
+
+]]>
+</script>
+</muclient>

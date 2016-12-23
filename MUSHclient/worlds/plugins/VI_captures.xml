@@ -24,9 +24,9 @@ Capture buffers with keyboard navigation
 
 <alias
    script="dump_capture"
-   match="^mc dump( .*)?$"
+   match="mc dump*"
    enabled="y"
-   regexp="y"
+   regexp="n"
    sequence="100"
    ignore_case="y"
 ></alias>
@@ -192,24 +192,9 @@ Capture buffers with keyboard navigation
 ><send>
 stamp_and_store("help","Detailed help for the VI captures plug-in is included in a text file called VI_captures_README.txt in the same location as the plug-in.")
 stamp_and_store("help","Available commands are:")
-stamp_and_store("help","mc switch")
-stamp_and_store("help","mc next")
-stamp_and_store("help","mc prev")
-stamp_and_store("help","mc list")
-stamp_and_store("help","mc next line")
-stamp_and_store("help","mc prev line")
-stamp_and_store("help","mc first line")
-stamp_and_store("help","mc last line")
-stamp_and_store("help","mc show")
-stamp_and_store("help","mc copy")
-stamp_and_store("help","mc copy next url")
-stamp_and_store("help","mc copy prev url")
-stamp_and_store("help","mc browse copied url")
-stamp_and_store("help","mc delete line")
-stamp_and_store("help","mc clear")
-stamp_and_store("help","mc remove")
-stamp_and_store("help","mc loud")
-stamp_and_store("help","mc quiet")
+for i,v in ipairs(GetAliasList()) do
+   stamp_and_store("help", GetAliasInfo(v, 1))
+end
 stamp_and_store("help","This information has been stored in the [help] capture.")
 </send>
 </alias>

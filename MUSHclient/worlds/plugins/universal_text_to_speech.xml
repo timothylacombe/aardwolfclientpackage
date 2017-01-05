@@ -13,11 +13,39 @@
    version="1.0"
    >
 <description>
-Text to speech support using the Tolk speech abstraction library.
+Text to speech support using the Tolk speech and braille abstraction library.
 https://github.com/dkager/tolk
 </description>
 </plugin>
+
 <aliases>
+  <alias 
+   match="tts_stop" 
+   enabled="y" 
+   send_to="12" 
+   sequence="100"
+  >
+  <send>silence()</send>
+  </alias>
+  
+  <alias
+   match="tts_note *"
+   enabled="y"
+   send_to="12"
+   sequence="100"
+  >
+  <send>say("%1", false)</send>
+  </alias>
+    
+  <alias
+   match="tts_interrupt *"
+   enabled="y"
+   send_to="12"
+   sequence="100"
+  >
+  <send>say("%1", true)</send>
+  </alias>
+  
   <alias
    script="tts_toggle"
    match="tts"
@@ -32,6 +60,8 @@ https://github.com/dkager/tolk
 
 <script>
 <![CDATA[
+AcceleratorTo("Ctrl+Space", "CallPlugin('"..GetPluginID().."', 'silence')", sendto.script)
+
 local ffi = require "ffi"
 
 -- https://github.com/dkager/tolk
@@ -152,8 +182,6 @@ end
 function silence()
    tolk_api.Tolk_Silence()
 end
-
-AcceleratorTo("Ctrl+Space", "CallPlugin('"..GetPluginID().."', 'silence')", sendto.script)
 
 local reader = nil
 local loaded = false
